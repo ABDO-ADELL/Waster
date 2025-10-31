@@ -1,10 +1,12 @@
-﻿using Waster.DTOs;
-using Waster.Models;
-using Microsoft.AspNetCore.Authorization;
+﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using PhoneNumbers;
+using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
+using Waster.DTOs;
+using Waster.Models;
 
 namespace Waster.Controllers
 {
@@ -31,12 +33,10 @@ namespace Waster.Controllers
         [HttpGet("me")]
         public async Task<IActionResult> GetProfileAsync()
         {
-            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
-            if (string.IsNullOrEmpty(userId))
-                return Unauthorized("Invalid user identity.");
+            var userIdStr = User.FindFirstValue(ClaimTypes.NameIdentifier);
 
             var dto = await context.Users
-                .Where(u => u.Id == userId)
+                .Where(u => u.Id == userIdStr)
                 .Select(u => new UserProfileDto(
                     u.Id,
                     u.FirstName,
@@ -89,9 +89,6 @@ namespace Waster.Controllers
 
             return Ok(new { message = "Name updated successfully." });
         }
-
-
-
 
 
         [HttpPost("change-password")]
@@ -150,10 +147,7 @@ namespace Waster.Controllers
         }
 
 
-
-
-
-        [HttpPost("change-email")]  
+        [HttpPost("change-email")]
         public async Task<IActionResult> ChangeEmail([FromBody] ChangeEmailDto dto)
         {
             if (!ModelState.IsValid)
@@ -215,7 +209,7 @@ namespace Waster.Controllers
                 return StatusCode(500, new { message = "An error occurred while changing email" });
             }
         }
-
+        
 
 
         public record UpdateLocation(string? City, string? State, string Address);
@@ -243,15 +237,29 @@ namespace Waster.Controllers
         }
 
 
-
-
-
-
-        public record PhoneNumber(string PhoneNum);
+        public record PhoneNumber(
+            string PhoneNum);
 
         [HttpPut("update-PhoneNumber")]
         public async Task<IActionResult> PhoneNumberAsync([FromBody] PhoneNumber request)
         {
+
+            // Validate phone number
+            try
+            {
+                var phoneUtil = PhoneNumberUtil.GetInstance();
+                var phoneNumber = phoneUtil.Parse(request.PhoneNum, "EG");
+
+                if (!phoneUtil.IsValidNumber(phoneNumber))
+                    return BadRequest("Invalid phone number.");
+            }
+            catch (NumberParseException)
+            {
+                return BadRequest("Invalid phone number format.");
+            }
+
+
+
             if (string.IsNullOrWhiteSpace(request.PhoneNum))
                 return BadRequest("PhoneNumber is required.");
 
@@ -263,11 +271,14 @@ namespace Waster.Controllers
             if (user == null)
                 return NotFound("User not found.");
 
-            user.PhoneNumber = request.PhoneNum.Trim();
+
+            var token = await _userManager.GenerateChangePhoneNumberTokenAsync(user, request.PhoneNum);
+
+            await _userManager.ChangePhoneNumberAsync(user, request.PhoneNum, token);
 
             await context.SaveChangesAsync();
 
-            return Ok(new { message = "Location updated successfully." });
+            return Ok(new { message = "Phone Number updated successfully." });
         }
 
 

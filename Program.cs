@@ -1,10 +1,19 @@
+﻿using Waster.Controllers;
 using Waster.Helpers;
 using Waster.Models;
 using Waster.Services;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Identity;
+using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.SqlServer;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Options;
+using Microsoft.SqlServer.Server;
 using Scalar.AspNetCore;
+using System.Configuration;
+
 
 namespace Waster
 {
@@ -17,10 +26,8 @@ namespace Waster
             // Add services to the container
             builder.Services.AddControllers();
 
-            // Configure JWT settings
             builder.Services.Configure<Jwt>(builder.Configuration.GetSection("Jwt"));
 
-            // Configure Identity
             builder.Services.AddIdentity<AppUser, IdentityRole>(options =>
             {
                 options.Password.RequireDigit = true;
@@ -28,30 +35,34 @@ namespace Waster
                 options.Password.RequireUppercase = true;
                 options.Password.RequireNonAlphanumeric = true;
                 options.Password.RequiredLength = 8;
+                options.Password.RequireUppercase = true;
+                options.Password.RequireLowercase = true;
                 options.Password.RequiredUniqueChars = 1;
+
                 options.Lockout.DefaultLockoutTimeSpan = TimeSpan.FromMinutes(3);
                 options.Lockout.MaxFailedAccessAttempts = 6;
                 options.Lockout.AllowedForNewUsers = true;
+
                 options.User.RequireUniqueEmail = true;
-            })
-            .AddEntityFrameworkStores<AppDbContext>()
-            .AddDefaultTokenProviders();
 
-            // Configure Database
-            builder.Services.AddDbContext<AppDbContext>(options =>
-                options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
 
-            // Register custom services
+            }).AddEntityFrameworkStores<AppDbContext>()
+                .AddDefaultTokenProviders();
+
+
+
+            builder.Services.AddDbContext<AppDbContext>(options => options.UseSqlServer(
+                builder.Configuration.GetConnectionString("DefaultConnection")
+                ));
+
+
             builder.Services.AddScoped<IAuthService, AuthService>();
             builder.Services.AddTransient(typeof(IBaseReporesitory<>), typeof(BaseReporesitory<>));
-
-            // Configure Authentication
             builder.Services.AddAuthentication(options =>
             {
                 options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
                 options.DefaultChallengeScheme = JwtBearerDefaults.AuthenticationScheme;
-            })
-            .AddJwtBearer(o =>
+            }).AddJwtBearer(o =>
             {
                 o.RequireHttpsMetadata = false;
                 o.SaveToken = false;
@@ -61,50 +72,68 @@ namespace Waster
                     ValidateIssuer = true,
                     ValidateAudience = true,
                     ValidateLifetime = true,
-                    ValidIssuer = builder.Configuration["JWT:Issuer"],
-                    ValidAudience = builder.Configuration["JWT:Audience"],
-                    IssuerSigningKey = new Microsoft.IdentityModel.Tokens.SymmetricSecurityKey(
-                        System.Text.Encoding.UTF8.GetBytes(builder.Configuration["JWT:Key"]))
+                    ValidIssuer = builder.Configuration["Jwt:Issuer"],
+                    ValidAudience = builder.Configuration["Jwt:Audience"],
+                    IssuerSigningKey = new Microsoft.IdentityModel.Tokens.SymmetricSecurityKey(System.Text.Encoding.UTF8.GetBytes(builder.Configuration["Jwt:Key"])),
+
                 };
             });
 
-            // Add OpenAPI/Swagger services
             builder.Services.AddEndpointsApiExplorer();
-            // FIX: Add OpenAPI with proper configuration
-            builder.Services.AddOpenApi(options =>
+
+            // Add OpenAPI/Swagger
+            builder.Services.AddOpenApi();
+
+            // Add CORS to allow browser access
+            builder.Services.AddCors(options =>
             {
-                options.AddDocumentTransformer((document, context, cancellationToken) =>
+                options.AddPolicy("AllowAll", builder =>
                 {
-                    document.Info.Title = "Waster API";
-                    document.Info.Version = "v1";
-                    document.Info.Description = "Food Waste Reduction API";
-                    return Task.CompletedTask;
+                    builder.AllowAnyOrigin()
+                           .AllowAnyMethod()
+                           .AllowAnyHeader();
                 });
             });
 
             var app = builder.Build();
 
+
+            // ...
+
+            app.UseCors("AllowFrontend");
+
+            // Enable CORS
+            app.UseCors("AllowAll");
+
             // Map OpenAPI endpoint
             app.MapOpenApi();
 
-            // Configure Scalar UI for development
-            if (app.Environment.IsDevelopment())
+            // Map Scalar with custom configuration
+            app.MapScalarApiReference(options =>
             {
-                app.MapScalarApiReference(options =>
-                {
-                    options
-                        .WithTitle("Waster API")
-                        .WithTheme(ScalarTheme.Mars)
-                        .WithDefaultHttpClient(ScalarTarget.CSharp, ScalarClient.HttpClient);
-                });
-            }
+                options
+                    .WithTitle("Waster API Documentation")
+                    .WithTheme(ScalarTheme.Mars)
+                    .WithDefaultHttpClient(ScalarTarget.CSharp, ScalarClient.HttpClient);
+            });
 
-            // Configure middleware pipeline
+            // Add a root endpoint to redirect to Scalar
+            app.MapGet("/", () => Results.Redirect("/scalar/v1"))
+                .ExcludeFromDescription();
+
+            // Add alternative routes for documentation
+            app.MapGet("/docs", () => Results.Redirect("/scalar/v1"))
+                .ExcludeFromDescription();
+
+            app.MapGet("/api-docs", () => Results.Redirect("/scalar/v1"))
+                .ExcludeFromDescription();
+
+            // Configure the HTTP request pipeline
             app.UseHttpsRedirection();
+            app.UseRouting();
             app.UseAuthentication();
             app.UseAuthorization();
 
-            // Map controllers - THIS MUST BE AFTER UseAuthorization
             app.MapControllers();
 
             app.Run();

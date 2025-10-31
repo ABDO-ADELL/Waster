@@ -62,41 +62,29 @@ namespace Waster.Controllers
 
 
         //2
-        [HttpGet("SearchPosts/{Title}")]//Search by title, type, status ** Reporesitory pattern approach
+        [HttpGet("SearchPosts")]//Search by title, type, status ** Reporesitory pattern approach
         public async Task<ActionResult<IEnumerable<PostDto>>> SearchPosts
             ([FromQuery] string title = null, [FromQuery] string type = null,
             [FromQuery] string status = null)
         {
             var posts = await _postRepo.SearchAndFilter(title, type, status,
-                p => !p.IsDeleted && p.IsValid).Select(p => new Post
-                {
-                    Title = p.Title,
-                    Description = p.Description,
-                    Quantity = p.Quantity,
-                    Unit = p.Unit,
-                    Type = p.Type,
-                    Status = p.Status,
-                    IsValid = p.IsValid,
-                    Created = p.Created,
-                    Updated = p.Updated,
-                    Notes = p.Notes,
-                    PickupLocation = p.PickupLocation,
-                    ExpiresOn = p.ExpiresOn,
-                    ImageType = p.ImageType,
-                    Category = p.Category
-                    //HasImage = p.ImageData != null,
-                    //ClaimsCount = p.Claims.Count
-                }).OrderByDescending(p => p.Created)
+                p => !p.IsDeleted && p.IsValid).OrderByDescending(p => p.Created)
                 .ToListAsync();
+
+            if (!posts.Any()) return NotFound("No posts was found");
+
+
             return Ok(posts);
         }
 
 
         //3
-        [HttpGet("{id}/image")]//get image by post id
+        [HttpGet("Get Post Image")]//get image by post id
         [AllowAnonymous]
-        public async Task<IActionResult> GetPostImage(Guid id)
+        public async Task<IActionResult> GetPostImage([FromBody]Guid id)
         {
+            if (!ModelState.IsValid) return BadRequest("the id is not valid");
+
 
             var post = await context.Posts.AsNoTracking()
                 .Where(p => p.Id == id && !p.IsDeleted)
@@ -104,15 +92,16 @@ namespace Waster.Controllers
                 .FirstOrDefaultAsync();
 
             if (post == null || post.ImageData == null)
-                return NotFound();
+                return NotFound("Couldnt reach the image the post might be deleted");
 
             return File(post.ImageData, post.ImageType ?? "image/jpeg");
         }
 
         //4
-        [HttpGet("{id}", Name = "GetPost")]  // Name = "GetPost" for CreatedAtRoute ** reporesitory pattern approach
-        public async Task<IActionResult> GetPost(Guid id)
+        [HttpGet("GetPost")]  // Name = "GetPost" for CreatedAtRoute ** reporesitory pattern approach
+        public async Task<IActionResult> GetPost([FromQuery]Guid id)
         {
+            if (!ModelState.IsValid) return BadRequest("the id is not valid");
             var post = await _postRepo.GetByIdAsync(id);  
 
             if (post == null || post.IsDeleted)
@@ -136,6 +125,12 @@ namespace Waster.Controllers
             if (model.ExpiresOn <= DateTime.UtcNow)
             {
                 return BadRequest(new { message = "Expiry date must be in the future" });
+            }
+
+            var user = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            if (user == null)
+            {
+                return Unauthorized("User must be authenticated to create a post");
             }
 
             var post = new Post
@@ -181,8 +176,8 @@ namespace Waster.Controllers
         }
 
         //6
-        [HttpPut("{id}")]
-        public async Task<IActionResult> UpdatePost(Guid id, [FromBody] UpdatePostDto dto)
+        [HttpPut("Edit post ")]
+        public async Task<IActionResult> UpdatePost([FromQuery] Guid id, [FromBody] UpdatePostDto dto)
         {
             if (!ModelState.IsValid)
                 return BadRequest(ModelState);
@@ -252,8 +247,8 @@ namespace Waster.Controllers
 
 
         //7
-        [HttpDelete("DeletePost/{id}")] // soft delete Based on repository pattern
-        public async Task<IActionResult> DeletePost(Guid id)
+        [HttpDelete("Delete Post")] // soft delete Based on repository pattern
+        public async Task<IActionResult> DeletePost([FromBody]Guid id)
         {
 
             try

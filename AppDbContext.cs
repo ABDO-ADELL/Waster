@@ -16,10 +16,18 @@ namespace Waster
         public DbSet<VolunteerAssignment> VolunteerAssignments { get; set; }
         public DbSet<ImpactRecord> ImpactRecords { get; set; }
         public DbSet<DashboardStats> dashboardStatus { get; set; }
-
+        public DbSet<RefreshTokens> RefreshTokens { get; set; }
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             base.OnModelCreating(modelBuilder);
+
+
+            modelBuilder.Entity<AppUser>()
+                .HasMany(u => u.RefreshTokens)
+                .WithOne(t => t.User)
+                .HasForeignKey(t => t.UserId)
+                .OnDelete(DeleteBehavior.Cascade);
+
 
             // Post → ClaimPost
             modelBuilder.Entity<ClaimPost>()

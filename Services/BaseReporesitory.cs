@@ -17,6 +17,7 @@ namespace Waster.Services
         public async Task<T?> GetByIdAsync(Guid id)
         {
             var query = _context.Set<T>().AsQueryable();
+
             query = query.Where(e => EF.Property<Guid>(e, "Id") == id);
 
             //  IsDeleted filter only if property exists

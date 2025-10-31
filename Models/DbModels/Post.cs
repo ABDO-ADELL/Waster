@@ -16,8 +16,8 @@ public class Post
     public string Unit { get; set; }
     [Required]
     public string Type { get; set; }
-    public byte[] ImageData { get; set; }
-    public string ImageType { get; set; }
+    public byte[]? ImageData { get; set; }
+    public string? ImageType { get; set; }
     public string Status { get; set; } // Available, Claimed, Expired
     public bool IsValid { get; set; }
 

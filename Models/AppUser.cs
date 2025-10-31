@@ -27,7 +27,8 @@ namespace Waster.Models
 
         //   public string Password { get; set; }
 
-        public List<RefreshTokens>? RefreshTokens { get; set; }
+        public ICollection<RefreshTokens> RefreshTokens { get; set; } = new List<RefreshTokens>();
+
 
 
     }

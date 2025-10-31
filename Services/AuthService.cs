@@ -1,20 +1,21 @@
-﻿using Waster.Helpers;
-using Waster.Models;
-using Waster.Services;
+﻿using Azure;
+using Azure.Core;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.Tokens;
-using Microsoft.OpenApi.Services;
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using System.Security.Cryptography;
 using System.Text;
+using Waster.Helpers;
+using Waster.Models;
+using Waster.Services;
+
 namespace Waster.Services
 {
     public class AuthService : IAuthService
     {
-
         private readonly UserManager<AppUser> _userManager;
         private readonly RoleManager<IdentityRole> _roleManager;
         private readonly Jwt _jwt;
@@ -25,63 +26,95 @@ namespace Waster.Services
             _jwt = jwt.Value;
             _roleManager = roleManager;
         }
+
         public async Task<AuthModel> RegisterAsync(RegisterModel model)
         {
+            // Check if email already exists
             if (await _userManager.FindByEmailAsync(model.Email) is not null)
-            { return new AuthModel { Message = "Email is already registered!" }; }
-            if (await _userManager.FindByNameAsync(model.Email) is not null)
-            { return new AuthModel { Message = "Username is already registered!" }; }
+            {
+                return new AuthModel { Message = "Email is already registered!" };
+            }
 
+            // Check if username already exists
+            if (await _userManager.FindByNameAsync(model.Email) is not null)
+            {
+                return new AuthModel { Message = "Username is already registered!" };
+            }
+
+            // Create new user
             var user = new AppUser
             {
                 FirstName = model.FirstName,
                 LastName = model.LastName,
                 Email = model.Email,
                 UserName = model.Email,
-                SecurityStamp = Guid.NewGuid().ToString()
+                SecurityStamp = Guid.NewGuid().ToString(),
+                RefreshTokens = new List<RefreshTokens>() // Initialize the collection
             };
 
-
+            // Attempt to create user
             var result = await _userManager.CreateAsync(user, model.Password);
-            return result.Succeeded ? new AuthModel { Message = "User created successfully!" } : new AuthModel
-            {
-                Message = "User did not create successfully! Please try again."
-                    + string.Join(", ", result.Errors.Select(e => e.Description))
-            };
 
+            // If creation failed, return error
+            if (!result.Succeeded)
+            {
+                return new AuthModel
+                {
+                    Message = "User did not create successfully! " +
+                              string.Join(", ", result.Errors.Select(e => e.Description))
+                };
+            }
+
+            // If creation succeeded, generate JWT token and return success
             var jwtSecurityToken = await CreateJwtToken(user);
+
+            var refreshToken = GenerateRefreshToken();
+            user.RefreshTokens.Add(refreshToken);
+            await _userManager.UpdateAsync(user);
+
             return new AuthModel
             {
                 Email = user.Email,
                 IsAuthenticated = true,
                 Token = new JwtSecurityTokenHandler().WriteToken(jwtSecurityToken),
-               // Expiration = jwtSecurityToken.ValidTo,
+                ExpiresOn = jwtSecurityToken.ValidTo,
                 UserName = user.UserName,
-                Roles = (await _userManager.GetRolesAsync(user)).ToList()
+                Roles = (await _userManager.GetRolesAsync(user)).ToList(),
+                RefreshToken = refreshToken.Token,
+                RefreshTokenExpiration = refreshToken.ExpiresOn,
+                Message = "User registered successfully!"
             };
-
         }
 
+        // Login Method
         public async Task<AuthModel> LoginAsync(LoginModel model)
         {
             var authmodel = new AuthModel();
-            var user = await _userManager.FindByEmailAsync(model.Email);
+
+            // FIXED: Eagerly load RefreshTokens navigation property
+            var user = await _userManager.Users
+                .Include(u => u.RefreshTokens)
+                .FirstOrDefaultAsync(u => u.Email == model.Email);
+
             if (user is null || !await _userManager.CheckPasswordAsync(user, model.Password))
             {
                 authmodel.Message = "Email or Password is Incorrect!";
+                return authmodel;
             }
+
             var jwtSecurityToken = await CreateJwtToken(user);
             var roles = await _userManager.GetRolesAsync(user);
-            var userClaims = await _userManager.GetClaimsAsync(user);
-            authmodel.Token = new JwtSecurityTokenHandler().WriteToken(jwtSecurityToken);
 
+            authmodel.Token = new JwtSecurityTokenHandler().WriteToken(jwtSecurityToken);
             authmodel.IsAuthenticated = true;
             authmodel.Email = user.Email;
-           // authmodel.Expiration = jwtSecurityToken.ValidTo;
+            authmodel.ExpiresOn = jwtSecurityToken.ValidTo;
             authmodel.UserName = user.UserName;
             authmodel.Roles = roles.ToList();
             authmodel.Message = "Login Successful!";
-            if (user.RefreshTokens.Any(t => t.IsActive))
+
+            // FIXED: Check if RefreshTokens collection is not null before querying
+            if (user.RefreshTokens != null && user.RefreshTokens.Any(t => t.IsActive))
             {
                 var activeRefreshToken = user.RefreshTokens.FirstOrDefault(t => t.IsActive);
                 authmodel.RefreshToken = activeRefreshToken.Token;
@@ -92,15 +125,17 @@ namespace Waster.Services
                 var refreshToken = GenerateRefreshToken();
                 authmodel.RefreshToken = refreshToken.Token;
                 authmodel.RefreshTokenExpiration = refreshToken.ExpiresOn;
+
+                // Initialize collection if null
+                if (user.RefreshTokens == null)
+                    user.RefreshTokens = new List<RefreshTokens>();
+
                 user.RefreshTokens.Add(refreshToken);
                 await _userManager.UpdateAsync(user);
-
             }
-            return authmodel;
 
             return authmodel;
         }
-
 
         public async Task<string> AddRoleAsync(AddRole model)
         {
@@ -127,10 +162,10 @@ namespace Waster.Services
 
             var claims = new[]
             {
-                new Claim(JwtRegisteredClaimNames.Sub, user.UserName),
+                new Claim(JwtRegisteredClaimNames.Sub, user.Id),
                 new Claim(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString()),
                 new Claim(JwtRegisteredClaimNames.Email, user.Email),
-                new Claim("uid", user.Id)
+                new Claim("username", user.UserName)
             }
             .Union(userClaims)
             .Union(roleClaims);
@@ -142,7 +177,7 @@ namespace Waster.Services
                 issuer: _jwt.Issuer,
                 audience: _jwt.Audience,
                 claims: claims,
-                expires: DateTime.Now.AddDays(_jwt.DurationInDays),
+                expires: DateTime.UtcNow.AddDays(_jwt.DurationInDays),
                 signingCredentials: signingCredentials);
 
             return jwtSecurityToken;
@@ -151,62 +186,79 @@ namespace Waster.Services
         private RefreshTokens GenerateRefreshToken()
         {
             var randomNumber = new byte[32];
+
             using var rng = RandomNumberGenerator.Create();
             rng.GetBytes(randomNumber);
+
             return new RefreshTokens
             {
-                Token = Convert.ToBase64String(randomNumber),
+                Token = Base64UrlEncode(randomNumber),
                 ExpiresOn = DateTime.UtcNow.AddDays(7),
                 CreatedOn = DateTime.UtcNow
-
             };
-
         }
-
+        private static string Base64UrlEncode(byte[] bytes)
+        {
+            return Convert.ToBase64String(bytes)
+                .Replace("+", "-")
+                .Replace("/", "_")
+                .Replace("=", "");
+        }
 
         public async Task<AuthModel> RefreshTokenAsync(string token)
         {
             var authmodel = new AuthModel();
-            var user = await _userManager.Users.SingleOrDefaultAsync(t=> t.RefreshTokens.Any(r=> r.Token==token));
-            if (user==null)
-            {
-                authmodel.IsAuthenticated = false;
-                authmodel.Message= "Invalid Token";
-                return authmodel;
 
-            }
-            var refreshtoken = user.RefreshTokens.Single(u => u.Token == token);
-            if (!refreshtoken.IsActive) {
+            // FIXED: Eagerly load RefreshTokens navigation property
+            var user = await _userManager.Users
+                .Include(u => u.RefreshTokens)
+                .SingleOrDefaultAsync(u => u.RefreshTokens.Any(r => r.Token == token));
+
+            if (user == null)
+            {
                 authmodel.IsAuthenticated = false;
                 authmodel.Message = "Invalid Token";
                 return authmodel;
             }
-            refreshtoken.RevokeOn= DateTime.UtcNow;
-            var NewRefreshToken= GenerateRefreshToken();
+
+            var refreshtoken = user.RefreshTokens.Single(u => u.Token == token);
+            if (!refreshtoken.IsActive)
+            {
+                authmodel.IsAuthenticated = false;
+                authmodel.Message = "Invalid Token";
+                return authmodel;
+            }
+
+            refreshtoken.RevokeOn = DateTime.UtcNow;
+            var NewRefreshToken = GenerateRefreshToken();
             user.RefreshTokens.Add(NewRefreshToken);
 
             await _userManager.UpdateAsync(user);
-            var JwtToken =await CreateJwtToken(user);
+            var JwtToken = await CreateJwtToken(user);
+
             authmodel.IsAuthenticated = true;
-            authmodel.Email=user.Email;
-            authmodel.UserName=user.UserName;
+            authmodel.Email = user.Email;
+            authmodel.UserName = user.UserName;
             authmodel.Token = new JwtSecurityTokenHandler().WriteToken(JwtToken);
+            authmodel.ExpiresOn = JwtToken.ValidTo;
+
             var roles = await _userManager.GetRolesAsync(user);
-            authmodel.Roles=roles.ToList();
-            authmodel.RefreshToken=NewRefreshToken.Token;
+            authmodel.Roles = roles.ToList();
+            authmodel.RefreshToken = NewRefreshToken.Token;
             authmodel.RefreshTokenExpiration = NewRefreshToken.ExpiresOn;
+
             return authmodel;
-
-
         }
+
         public async Task<bool> RevokeTokenAsync(string token)
         {
+            // FIXED: Eagerly load RefreshTokens navigation property
+            var user = await _userManager.Users
+                .Include(u => u.RefreshTokens)
+                .SingleOrDefaultAsync(u => u.RefreshTokens.Any(r => r.Token == token));
 
-
-            var user = await _userManager.Users.SingleOrDefaultAsync(t => t.RefreshTokens.Any(r => r.Token == token));
             if (user == null)
                 return false;
-
 
             var refreshtoken = user.RefreshTokens.Single(u => u.Token == token);
             if (!refreshtoken.IsActive)
@@ -216,9 +268,10 @@ namespace Waster.Services
 
             await _userManager.UpdateAsync(user);
             return true;
-
-
-
         }
+
+
+
+
     }
 }
