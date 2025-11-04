@@ -26,11 +26,7 @@ namespace Waster.Models
         public ICollection<ClaimPost> ClaimedPosts { get; set; }
 
         public virtual ICollection<BookMark> BookMark { get; set; }
-        public string BookMarkId { get; set; }
-
-
-        //   public string Password { get; set; }
-
+        //public string BookMarkId { get; set; }
         public ICollection<RefreshTokens> RefreshTokens { get; set; } = new List<RefreshTokens>();
 
 

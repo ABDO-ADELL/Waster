@@ -20,9 +20,6 @@ public class Post
     public string Status { get; set; } // Available, Claimed, Expired
     public bool IsValid { get; set; }
 
-    public virtual BookMark BookMark { get; set; }
-
-    public string BookMarkId { get; set; }
     public string Category { get; set; }
     public DateTime Created { get; set; }
     public DateTime Updated { get; set; }
@@ -37,7 +34,7 @@ public class Post
     [ForeignKey(nameof(UserId))]
     public AppUser AppUser { get; set; }
 
-    public bool IsBookMarked { get; set; }
+    public ICollection<BookMark> BookMarks { get; set; }
 
     public ICollection<ClaimPost> Claims { get; set; }
     public ICollection<ImpactRecord> ImpactRecords { get; set; }

@@ -107,32 +107,29 @@ namespace Waster
             modelBuilder.Entity<RefreshTokens>()
                 .HasIndex(r => new { r.UserId, r.ExpiresOn })
                 .HasDatabaseName("IX_RefreshTokens_UserId_ExpiresOn");
+            // BookMark relationships
+            modelBuilder.Entity<BookMark>()
+                .HasKey(b => b.Id);
 
+            modelBuilder.Entity<BookMark>()
+                .HasOne(b => b.User)
+                .WithMany(u => u.BookMark)
+                .HasForeignKey(b => b.UserId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            modelBuilder.Entity<BookMark>()
+                .HasOne(b => b.Post)
+                .WithMany(p => p.BookMarks)
+                .HasForeignKey(b => b.PostId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            // Prevent duplicate bookmarks
+            modelBuilder.Entity<BookMark>()
+                .HasIndex(b => new { b.UserId, b.PostId })
+                .IsUnique()
+                .HasDatabaseName("IX_BookMark_UserId_PostId_Unique");
 
         }
 
     }
 }
-//public void onmodelCreating(ModelBuilder modelBuilder)
-//{
-//    base.OnModelCreating(modelBuilder);
-//    // Customize the ASP.NET Identity model and override the defaults if needed.
-//    // For example, you can rename the ASP.NET Identity table names and more.
-//    // Add your customizations after calling base.OnModelCreating(builder);
-//}
-/*
-
- protected override void OnModelCreating(ModelBuilder modelBuilder)
-{
-base.OnModelCreating(modelBuilder);
-
-modelBuilder.Entity<Claim>()
-    .HasOne(c => c.Post)
-    .WithMany(p => p.Claims)
-    .HasForeignKey(c => c.PostId)
-    .OnDelete(DeleteBehavior.Restrict);   // 🚫 SQL will prevent deleting Post if Claims exist
-}
-
-
-
- */

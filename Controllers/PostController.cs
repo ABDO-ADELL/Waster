@@ -97,31 +97,31 @@ namespace Waster.Controllers
 
 
         //4
-        [HttpGet("GetPost/{id}", Name = "GetPost")]// Name = "GetPost" for CreatedAtRoute ** reporesitory pattern approach
-        public async Task<IActionResult> GetPost([FromQuery]Guid id)
+        [HttpGet("GetPost/{id}", Name = "GetPost")]
+        public async Task<IActionResult> GetPost(Guid id)
         {
             var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
             if (userId == null)
                 return Unauthorized("User ID not found in token.");
-            var checkbookmark = await _bookmarkbl.GetBookMark(userId);
-            if (!ModelState.IsValid) return BadRequest("the id is not valid");
-            var post = await _postRepo.GetByIdAsync(id);  
-            bool isBookMarked = false;
+
+            var post = await _postRepo.GetByIdAsync(id);
 
             if (post == null || post.IsDeleted)
             {
                 return NotFound(new { message = $"Post with ID {id} not found" });
             }
-            if (checkbookmark.Contains(post)){ 
-               
-            isBookMarked = true;
-            }
 
+            // Check if bookmarked efficiently
+            bool isBookMarked = await context.BookMarks
+                .AnyAsync(b => b.UserId == userId && b.PostId == id);
 
             bool isOwner = post.UserId == userId;
-            
-            return Ok(new {posts = post.ToResponseDto(includeOwner: isOwner), isBookMarked});
 
+            return Ok(new
+            {
+                post = post.ToResponseDto(includeOwner: isOwner),
+                isBookMarked
+            });
         }
 
         //5

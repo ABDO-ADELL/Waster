@@ -42,7 +42,7 @@ namespace Waster.Controllers
             if (string.IsNullOrEmpty(userId))
                 return Unauthorized(new { Message = "User not found" });
 
-            var posts = BookMarkBL.GetBookMark(userId);
+            var posts = await BookMarkBL.GetBookMark(userId);
             if (posts == null)
                 return NotFound(new { Message = "No BookMarks found" });
 
@@ -60,54 +60,33 @@ namespace Waster.Controllers
             var bookMark = await BookMarkBL.AddPostToBookMark(userId, id);
 
             _context.BookMarks.Add(bookMark);
-            try
-            {
+            
                 await _context.SaveChangesAsync();
-            }
-            catch (DbUpdateException)
-            {
-                if (BookMarkExists(bookMark.Id))
-                {
-                    return Conflict(new { Message = " BookMark couldnt be saved due an error"});
-                }
-                else
-                {
-                    throw;
-                }
-            }
+            
+
 
             return CreatedAtAction("GetBookMark", new { id = bookMark.Id }, bookMark);
         }
 
 
-        [HttpDelete]
-        public async Task<IActionResult> DeleteBookMark([FromQuery]string Bookmarkid)
+        [HttpDelete("{postId}")]
+        public async Task<IActionResult> DeleteBookMark(Guid postId)
         {
             var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
             if (string.IsNullOrEmpty(userId))
-                return Unauthorized(new {Message= "User not found" });
+                return Unauthorized(new { message = "User not found" });
 
+            var bookMark = await _context.BookMarks
+                .FirstOrDefaultAsync(b => b.UserId == userId && b.PostId == postId);
 
-            var bookmark = await _context.BookMarks
-                .Where(b => b.UserId.ToString() == userId && b.Id ==Bookmarkid)
-                .Select(b => b.Id)
-                .FirstOrDefaultAsync();
-            if (bookmark == null)
-                {
-                return NotFound(new {Message= "No Bookmarks was found"});
-            }
+            if (bookMark == null)
+                return NotFound(new { message = "Bookmark not found" });
 
-            var bookMark = await _context.BookMarks.FindAsync(bookmark);
-            
             _context.BookMarks.Remove(bookMark);
             await _context.SaveChangesAsync();
 
             return NoContent();
         }
 
-        private bool BookMarkExists(string id)
-        {
-            return _context.BookMarks.Any(e => e.Id == id);
-        }
     }
 }
