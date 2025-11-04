@@ -19,10 +19,14 @@ namespace Waster.Models
         public string? City { get; set; }
         public string? State { get; set; }
         public string? ProfilePictureUrl { get; set; }
+        public string? Bio {  get; set; }
    
         // Navigation properties
         public ICollection<Post> Posts { get; set; }
         public ICollection<ClaimPost> ClaimedPosts { get; set; }
+
+        public virtual ICollection<BookMark> BookMark { get; set; }
+        public string BookMarkId { get; set; }
 
 
         //   public string Password { get; set; }

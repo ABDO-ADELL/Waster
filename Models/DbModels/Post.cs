@@ -16,17 +16,17 @@ public class Post
     public string Unit { get; set; }
     [Required]
     public string Type { get; set; }
-    public byte[]? ImageData { get; set; }
-    public string? ImageType { get; set; }
+    public string? ImageUrl { get; set; }
     public string Status { get; set; } // Available, Claimed, Expired
     public bool IsValid { get; set; }
 
+    public virtual BookMark BookMark { get; set; }
+
+    public string BookMarkId { get; set; }
     public string Category { get; set; }
     public DateTime Created { get; set; }
     public DateTime Updated { get; set; }
     public string Notes { get; set; }
-
-
     [Required]
     public string PickupLocation { get; set; }
     [Required]
@@ -36,6 +36,8 @@ public class Post
     public string UserId { get; set; }
     [ForeignKey(nameof(UserId))]
     public AppUser AppUser { get; set; }
+
+    public bool IsBookMarked { get; set; }
 
     public ICollection<ClaimPost> Claims { get; set; }
     public ICollection<ImpactRecord> ImpactRecords { get; set; }

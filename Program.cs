@@ -50,6 +50,7 @@ namespace Waster
                 .AddDefaultTokenProviders();
 
 
+            builder.Services.AddScoped<IFileStorageService, FileStorageService>();
 
             builder.Services.AddDbContext<AppDbContext>(options => options.UseSqlServer(
                 builder.Configuration.GetConnectionString("DefaultConnection")
@@ -95,10 +96,12 @@ namespace Waster
                 });
             });
 
+                        builder.Services.AddSwaggerGen();
+
             var app = builder.Build();
 
 
-            // ...
+            app.UseStaticFiles(); // This allows accessing /uploads/images/abc123.jpg
 
             app.UseCors("AllowFrontend");
 
@@ -128,6 +131,12 @@ namespace Waster
             app.MapGet("/api-docs", () => Results.Redirect("/scalar/v1"))
                 .ExcludeFromDescription();
 
+                        if (app.Environment.IsDevelopment())
+{
+    app.UseSwagger();
+    app.UseSwaggerUI();
+};
+
             // Configure the HTTP request pipeline
             app.UseHttpsRedirection();
             app.UseRouting();
@@ -135,6 +144,7 @@ namespace Waster
             app.UseAuthorization();
 
             app.MapControllers();
+
 
             app.Run();
         }

@@ -1,9 +1,11 @@
-﻿using Waster.Services;
-using Microsoft.AspNetCore.Authorization;
+﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using System.Security.Claims;
+using System.Threading;
 using Waster.DTOs;
+using Waster.Helpers;
+using Waster.Services;
 namespace Waster.Controllers
 {
     [Route("api/[controller]")]
@@ -11,105 +13,114 @@ namespace Waster.Controllers
     [Authorize]
     public class PostController : ControllerBase
     {
-        public AppDbContext context { get; set; }
+        private readonly AppDbContext context;
         private readonly IBaseReporesitory<Post> _postRepo;
         private readonly ILogger<PostController> _logger;
-        public PostController(AppDbContext Context, IBaseReporesitory<Post> postRep, ILogger<PostController> logger)
+        private readonly IFileStorageService _fileStorage; 
+        private readonly BookMarkBL _bookmarkbl;
+
+        public PostController(
+        AppDbContext _context,IBaseReporesitory<Post> postRepo,ILogger<PostController> logger,  IFileStorageService fileStorage,BookMarkBL bookMarkBL) 
         {
-            _postRepo = postRep;
-            context = Context;
+            _postRepo = postRepo;
+            context = _context;
             _logger = logger;
+            _fileStorage = fileStorage;
+            _bookmarkbl = bookMarkBL;
         }
 
-
-        //1
-        [HttpGet("GetAllPosts")]//for user , auth required ** Reporesitory pattern approach
-        public async Task<IActionResult> GetAllPosts()
+        [HttpGet("Get All user's Posts")]
+        public async Task<IActionResult> GetAllPosts([FromQuery] PaginationParams paginationParams)
         {
-            var id = User.FindFirstValue(ClaimTypes.NameIdentifier);
-            if (id == null)
-            {
+            #region verify user id from token
+            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            if (userId == null)
                 return Unauthorized("User ID not found in token.");
-            }
-            var Posts = await _postRepo.SearchAndQuery(p => p.UserId == id && !p.IsDeleted,
-                p => new Post
-                {
-                    Title = p.Title,
-                    Description = p.Description,
-                    Quantity = p.Quantity,
-                    Unit = p.Unit,
-                    Type = p.Type,
-                    Status = p.Status,
-                    IsValid = p.IsValid,
-                    Created = p.Created,
-                    Updated = p.Updated,
-                    Notes = p.Notes,
-                    PickupLocation = p.PickupLocation,
-                    ExpiresOn = p.ExpiresOn,
-                    ImageType = p.ImageType
-                    ,Category = p.Category
-                    //HasImage = p.ImageData != null,
-                })
-                .OrderByDescending(p => p.Created)
-                .ToListAsync();
+            #endregion
+            var query = context.Posts
+                .Where(p => p.UserId == userId && !p.IsDeleted)
+                .OrderByDescending(p => p.Created);
 
+            // pagination
+            var pagedPosts = await query.ToPaginatedListAsync(
+                paginationParams?.PageNumber?? 1,
+                paginationParams?.PageSize?? 10);
 
-            if (!Posts.Any())
+            if (!pagedPosts.Items.Any())
                 return NotFound("No posts found for the specified user.");
 
-            return Ok(Posts);
+            var postDtos = pagedPosts.Items.Select(p => p.ToListItemDto()).ToList();
+
+            return Ok(new
+            {
+                items = postDtos,
+                pageNumber = pagedPosts.PageNumber,
+                pageSize = pagedPosts.PageSize,
+                totalCount = pagedPosts.TotalCount,
+                totalPages = pagedPosts.TotalPages,
+                hasPrevious = pagedPosts.HasPrevious,
+                hasNext = pagedPosts.HasNext
+            });
         }
 
 
-        //2
-        [HttpGet("SearchPosts")]//Search by title, type, status ** Reporesitory pattern approach
-        public async Task<ActionResult<IEnumerable<PostDto>>> SearchPosts
-            ([FromQuery] string title = null, [FromQuery] string type = null,
-            [FromQuery] string status = null)
+        //2  
+        [HttpGet("Search Posts")]
+        public async Task<IActionResult> SearchPosts
+        ([FromQuery] string? title = null,[FromQuery] string? type = null,[FromQuery] string? status = null,
+         [FromQuery] PaginationParams paginationParams = null)
         {
-            var posts = await _postRepo.SearchAndFilter(title, type, status,
-                p => !p.IsDeleted && p.IsValid).OrderByDescending(p => p.Created)
-                .ToListAsync();
+            paginationParams ??= new PaginationParams(); // Default if not provided
 
-            if (!posts.Any()) return NotFound("No posts was found");
+            var query = _postRepo.SearchAndFilter(title, type, status, p => !p.IsDeleted && p.IsValid)
+                .OrderByDescending(p => p.Created);
 
+            var pagedPosts = await query.ToPaginatedListAsync(
+                paginationParams.PageNumber,
+                paginationParams.PageSize);
 
-            return Ok(posts);
+            if (!pagedPosts.Items.Any())
+                return NotFound("No posts found");
+            var postDtos = pagedPosts.Items.Select(p => p.ToListItemDto()).ToList();
+
+            return Ok(new
+            {
+                items = postDtos,
+                pageNumber = pagedPosts.PageNumber,
+                pageSize = pagedPosts.PageSize,
+                totalCount = pagedPosts.TotalCount,
+                totalPages = pagedPosts.TotalPages,
+                hasPrevious = pagedPosts.HasPrevious,
+                hasNext = pagedPosts.HasNext
+            });
         }
 
-
-        //3
-        [HttpGet("Get Post Image")]//get image by post id
-        [AllowAnonymous]
-        public async Task<IActionResult> GetPostImage([FromBody]Guid id)
-        {
-            if (!ModelState.IsValid) return BadRequest("the id is not valid");
-
-
-            var post = await context.Posts.AsNoTracking()
-                .Where(p => p.Id == id && !p.IsDeleted)
-                .Select(p => new { p.ImageData, p.ImageType })
-                .FirstOrDefaultAsync();
-
-            if (post == null || post.ImageData == null)
-                return NotFound("Couldnt reach the image the post might be deleted");
-
-            return File(post.ImageData, post.ImageType ?? "image/jpeg");
-        }
 
         //4
-        [HttpGet("GetPost")]  // Name = "GetPost" for CreatedAtRoute ** reporesitory pattern approach
+        [HttpGet("GetPost/{id}", Name = "GetPost")]// Name = "GetPost" for CreatedAtRoute ** reporesitory pattern approach
         public async Task<IActionResult> GetPost([FromQuery]Guid id)
         {
+            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            if (userId == null)
+                return Unauthorized("User ID not found in token.");
+            var checkbookmark = await _bookmarkbl.GetBookMark(userId);
             if (!ModelState.IsValid) return BadRequest("the id is not valid");
             var post = await _postRepo.GetByIdAsync(id);  
+            bool isBookMarked = false;
 
             if (post == null || post.IsDeleted)
             {
                 return NotFound(new { message = $"Post with ID {id} not found" });
             }
+            if (checkbookmark.Contains(post)){ 
+               
+            isBookMarked = true;
+            }
 
-            return Ok(post);
+
+            bool isOwner = post.UserId == userId;
+            
+            return Ok(new {posts = post.ToResponseDto(includeOwner: isOwner), isBookMarked});
 
         }
 
@@ -133,150 +144,149 @@ namespace Waster.Controllers
                 return Unauthorized("User must be authenticated to create a post");
             }
 
+            string? imageUrl = null;
+            if (model.ImageData != null && model.ImageData.Length > 0)
+            {
+                try
+                {
+                    _logger.LogInformation("Saving image to file system ({Size} bytes)", model.ImageData.Length);
+
+                    // Save and get relative path
+                    imageUrl = await _fileStorage.SaveImageAsync(
+                        model.ImageData,
+                        model.ImageType ?? "image/jpeg"
+                    );
+
+                    _logger.LogInformation("Image saved: {Url}", imageUrl);
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, "Failed to save image");
+                    throw new Exception("Failed to save image. Please try again.");
+                }
+            }
+
             var post = new Post
             {
-
-                // System-generated
                 Id = Guid.NewGuid(),
                 Created = DateTime.UtcNow,
                 Updated = DateTime.UtcNow,
                 Status = "Available",
                 IsValid = true,
                 IsDeleted = false,
-                Category = model.Category,
-
-                // From authenticated user (NOT from client)
-                UserId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value
-                     ?? throw new UnauthorizedAccessException("User must be authenticated"),
-
-                // From DTO (client input)
+                UserId = user,
                 Title = model.Title,
                 Description = model.Description,
                 Quantity = model.Quantity,
                 Unit = model.Unit,
                 Type = model.Type,
-                ImageData = model.ImageData,
-                ImageType = model.ImageType,
+                Category = model.Category,
+                ImageUrl = imageUrl, // "/uploads/images/abc123.jpg"
                 Notes = model.Notes,
                 PickupLocation = model.PickupLocation,
                 ExpiresOn = model.ExpiresOn
-
-
-
-                //Created = DateTime.UtcNow,
-                //Status = "Available",
-                //IsValid = true,
-                //IsDeleted = false,
             };
+
             await _postRepo.AddAsync(post);
             await context.SaveChangesAsync();  //  Controller decides when to commit
 
-            return CreatedAtRoute(routeName: "GetPost", routeValues: new { id = post.Id }, value: post);
+            var responseDto = post.ToResponseDto();
+            return CreatedAtRoute("GetPost", new { id = post.Id }, responseDto);
+
+
+            //return CreatedAtRoute(routeName: "GetPost", routeValues: new { id = post.Id }, value: post);
 
         }
 
         //6
-        [HttpPut("Edit post ")]
+        [HttpPut("Edit post")]
         public async Task<IActionResult> UpdatePost([FromQuery] Guid id, [FromBody] UpdatePostDto dto)
         {
             if (!ModelState.IsValid)
-                return BadRequest(ModelState);
+                return BadRequest("Invalid update data");
 
-            try
+            var existingPost = await _postRepo.GetByIdAsync(id);
+            if (existingPost == null)
+                return NotFound("Post Not found");
+
+            // Handle image replacement
+            if (dto.ImageData != null && dto.ImageData.Length > 0)
             {
-                //Get existing post from database
-                var existingPost = await _postRepo.GetByIdAsync(id);
+                try
+                {
+                    // Delete old image
+                    if (!string.IsNullOrEmpty(existingPost.ImageUrl))
+                    {
+                        _logger.LogInformation("Deleting old image: {Url}", existingPost.ImageUrl);
+                         _fileStorage.DeleteImageAsync(existingPost.ImageUrl);
+                    }
 
-                if (existingPost == null)
-                    return NotFound(new { message = $"Post with ID {id} not found" });
-
-                //Map DTO properties to entity (only update what's provided)
-                if (dto.Title != null)
-                    existingPost.Title = dto.Title;
-
-                if (dto.Description != null)
-                    existingPost.Description = dto.Description;
-
-                if (dto.Quantity != null)
-                    existingPost.Quantity = dto.Quantity;
-
-                if (dto.Unit != null)
-                    existingPost.Unit = dto.Unit;
-
-                if (dto.Type != null)
-                    existingPost.Type = dto.Type;
-
-                if (dto.PickupLocation != null)
-                    existingPost.PickupLocation = dto.PickupLocation;
-
-                if (dto.ExpiresOn.HasValue)
-                    existingPost.ExpiresOn = dto.ExpiresOn.Value;
-
-                if (dto.ImageData != null)
-                    existingPost.ImageData = dto.ImageData;
-
-                if (dto.ImageType != null)
-                    existingPost.ImageType = dto.ImageType;
-
-                if (dto.Notes != null)
-                    existingPost.Notes = dto.Notes;
-                if (dto.Category != null)
-                    existingPost.Category = dto.Category;
-
-
-
-
-                //Call repository update (marks as modified)
-                await _postRepo.UpdateAsync(existingPost);
-
-                await context.SaveChangesAsync();
-
-                return Ok(existingPost);
+                    // Save new image
+                    _logger.LogInformation("Saving new image");
+                    existingPost.ImageUrl = await _fileStorage.SaveImageAsync(
+                        dto.ImageData,
+                        dto.ImageType ?? "image/jpeg"
+                    );
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, "Failed to update image");
+                    throw new Exception("Failed to update image. Please try again.");
+                }
             }
-            catch (DbUpdateConcurrencyException ex)
-            {
-                _logger.LogWarning(ex, "Concurrency conflict updating post {PostId}", id);
-                return Conflict(new { message = "Post was modified by another user" });
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error updating post {PostId}", id);
-                return StatusCode(500, new { message = "Error updating post" });
-            }
+
+            // Update other fields
+            if (dto.Title != null) existingPost.Title = dto.Title;
+            if (dto.Description != null) existingPost.Description = dto.Description;
+            if (dto.Quantity != null) existingPost.Quantity = dto.Quantity;
+            if (dto.Unit != null) existingPost.Unit = dto.Unit;
+            if (dto.Type != null) existingPost.Type = dto.Type;
+            if (dto.PickupLocation != null) existingPost.PickupLocation = dto.PickupLocation;
+            if (dto.ExpiresOn.HasValue) existingPost.ExpiresOn = dto.ExpiresOn.Value;
+            if (dto.Notes != null) existingPost.Notes = dto.Notes;
+            if (dto.Category != null) existingPost.Category = dto.Category;
+
+            await _postRepo.UpdateAsync(existingPost);
+            await context.SaveChangesAsync();
+
+            return Ok(existingPost.ToResponseDto());
+
+
         }
 
 
         //7
         [HttpDelete("Delete Post")] // soft delete Based on repository pattern
-        public async Task<IActionResult> DeletePost([FromBody]Guid id)
+        public async Task<IActionResult> DeletePost([FromQuery]Guid id)
         {
 
-            try
             {
-                var success = await _postRepo.DeleteAsync(id);
+                var post = await context.Posts.FindAsync(id);
+                if (post == null)
+                    return NotFound("Post not found ");
 
-                if (!success)
+                // Delete image from file system
+                if (!string.IsNullOrEmpty(post.ImageUrl))
                 {
-                    return NotFound(new { message = $"Post with ID {id} not found" });
+                    try
+                    {
+                        _logger.LogInformation("Deleting image: {Url}", post.ImageUrl);
+                         _fileStorage.DeleteImageAsync(post.ImageUrl);
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.LogWarning(ex, "Failed to delete image, continuing with post deletion");
+                    }
                 }
 
+                var success = await _postRepo.DeleteAsync(id);
+                if (!success)
+                    return NotFound("Post not found");
+
                 await context.SaveChangesAsync();
-
-                return NoContent();  // ← 204 status code (RESTful standard)
+                return NoContent();
             }
-            catch (DbUpdateException ex)
-            {
-                _logger.LogError(ex, "Database error while deleting post {PostId}", id);
-                return StatusCode(500, new { message = "Failed to delete post due to database error" });
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error deleting post {PostId}", id);
-                return StatusCode(500, new { message = "An unexpected error occurred" });
-            }
-
         }
-
     }
 }
 

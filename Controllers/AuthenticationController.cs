@@ -89,6 +89,8 @@ namespace Waster.Controllers
 
             return Ok(new { message = result });
         }
+
+
         public record RefreshTokenRequest
         {
             public string RefreshToken { get; set; }
@@ -124,12 +126,12 @@ namespace Waster.Controllers
         [HttpPost("RevokeToken")]
         public async Task<IActionResult> RevokeToken([FromBody] RevokeToken model)
         {
-            if (string.IsNullOrEmpty(model?.Token))
+            if (string.IsNullOrEmpty(model?.RefreshToken))
             {
                 return BadRequest(new { message = "Token is required" });
             }
 
-            var result = await _auth.RevokeTokenAsync(model.Token);
+            var result = await _auth.RevokeTokenAsync(model.RefreshToken);
 
             if (!result)
             {

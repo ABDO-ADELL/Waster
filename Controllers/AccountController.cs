@@ -28,7 +28,7 @@ namespace Waster.Controllers
 
         // DTOs are better than returning raw strings or entities
         public record UserProfileDto
-        (string Id, string FirstName, string LastName, string FullName, string Email);
+        (string Id, string FullName, string Email , string Address , string PhoneNumber );
 
         [HttpGet("me")]
         public async Task<IActionResult> GetProfileAsync()
@@ -39,10 +39,11 @@ namespace Waster.Controllers
                 .Where(u => u.Id == userIdStr)
                 .Select(u => new UserProfileDto(
                     u.Id,
-                    u.FirstName,
-                    u.LastName,
                     $"{u.FirstName} {u.LastName}",
-                    u.Email
+                    u.Email,
+                    u.Address,
+                    u.PhoneNumber
+                    
                 ))
                 .AsNoTracking()
                 .FirstOrDefaultAsync();
@@ -91,6 +92,30 @@ namespace Waster.Controllers
         }
 
 
+
+        public record UpdateBioRequest(string Bio);
+
+        [HttpPut("update-Bio")]
+        public async Task<IActionResult> UpdateBioAsync([FromBody] UpdateBioRequest request)
+        {
+
+            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            if (string.IsNullOrEmpty(userId))
+                return Unauthorized("Invalid user identity.");
+
+            var user = await context.Users.FindAsync(userId);
+            if (user == null)
+                return NotFound("User not found.");
+
+            user.Bio = request.Bio.Trim();
+
+            await context.SaveChangesAsync();
+
+            return Ok(new { message = "Bio updated successfully." });
+        }
+
+
+
         [HttpPost("change-password")]
         public async Task<IActionResult> ChangePassword([FromBody] ChangePasswordDto dto)
         {
@@ -133,11 +158,7 @@ namespace Waster.Controllers
                 _logger.LogWarning("Password change failed for user {UserId}: {Errors}",
                     userId, string.Join(", ", errors));
 
-                return BadRequest(new
-                {
-                    message = "Failed to change password",
-                    errors = errors
-                });
+                return BadRequest( new { message = "Failed to change password" });
             }
             catch (Exception ex)
             {
@@ -211,8 +232,7 @@ namespace Waster.Controllers
         }
         
 
-
-        public record UpdateLocation(string? City, string? State, string Address);
+        public record UpdateLocation(string Address);
 
         [HttpPut("update-Location")]
         public async Task<IActionResult> UpdateLocationAsync([FromBody] UpdateLocation request)
@@ -229,11 +249,9 @@ namespace Waster.Controllers
                 return NotFound("User not found.");
 
             user.Address = request.Address.Trim();
-            if (!string.IsNullOrWhiteSpace(request.City)) user.City = request.City.Trim();
-            if (!string.IsNullOrWhiteSpace(request.State)) user.State = request.State.Trim();
             await context.SaveChangesAsync();
 
-            return Ok(new { message = "Location updated successfully." });
+            return Ok(new { message = "Address updated successfully." });
         }
 
 

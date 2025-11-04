@@ -20,17 +20,12 @@ namespace Waster.Services
 
             query = query.Where(e => EF.Property<Guid>(e, "Id") == id);
 
-            //  IsDeleted filter only if property exists
-            var entityType = _context.Model.FindEntityType(typeof(T));
-            var hasIsDeleted = entityType?.FindProperty("IsDeleted") != null;
-            if (hasIsDeleted)
-            {
-                query = query.Where(e => !EF.Property<bool>(e, "IsDeleted"));
-            }
-
+            
             return await query.FirstOrDefaultAsync();
 
         }
+
+
         public async Task<T> AddAsync(T entity)
         {
             await _context.Set<T>().AddAsync(entity);
@@ -64,6 +59,8 @@ namespace Waster.Services
         {
             return _context.Set<T>().Where(predicate).Select(selector);
         }
+
+
         public async Task<IEnumerable<T>> Search(Expression<Func<T, bool>> predicate)
         {
             return await _context.Set<T>().Where(predicate).ToListAsync();
@@ -112,5 +109,6 @@ namespace Waster.Services
 
             return query;
         }
-    }
+
+     }
 }

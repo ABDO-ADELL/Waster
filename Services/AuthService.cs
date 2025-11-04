@@ -48,11 +48,15 @@ namespace Waster.Services
                 LastName = model.LastName,
                 Email = model.Email,
                 UserName = model.Email,
+                Address = model.Address,
+                //State = model.State,
+                //City = model.City,
+                PhoneNumber = model.PhoneNumber,
                 SecurityStamp = Guid.NewGuid().ToString(),
                 RefreshTokens = new List<RefreshTokens>() // Initialize the collection
             };
 
-            // Attempt to create user
+            //create user
             var result = await _userManager.CreateAsync(user, model.Password);
 
             // If creation failed, return error
@@ -250,28 +254,63 @@ namespace Waster.Services
             return authmodel;
         }
 
+
+
+
+
+
+
+        // Add this to your AuthService.cs - Replace the RevokeTokenAsync method
+
         public async Task<bool> RevokeTokenAsync(string token)
         {
-            // FIXED: Eagerly load RefreshTokens navigation property
+            if (string.IsNullOrWhiteSpace(token))
+                return false;
+            token = token.Trim();
+
+            // FIXED: Eagerly load RefreshTokens navigation property and search properly
             var user = await _userManager.Users
                 .Include(u => u.RefreshTokens)
-                .SingleOrDefaultAsync(u => u.RefreshTokens.Any(r => r.Token == token));
+                .FirstOrDefaultAsync(u => u.RefreshTokens != null &&
+                                         u.RefreshTokens.Any(r => r.Token == token));
 
             if (user == null)
+            {
+                // Log for debugging
+                Console.WriteLine($"No user found with refresh token: {token.Substring(0, Math.Min(10, token.Length))}...");
                 return false;
+            }
 
-            var refreshtoken = user.RefreshTokens.Single(u => u.Token == token);
+            // Find the specific refresh token
+            var refreshtoken = user.RefreshTokens.FirstOrDefault(u => u.Token == token);
+
+            if (refreshtoken == null)
+            {
+                Console.WriteLine("Refresh token not found in user's collection");
+                return false;
+            }
+
             if (!refreshtoken.IsActive)
+            {
+                Console.WriteLine("Token is already revoked or expired (refreshtoken is not active) ");
                 return false;
+            }
 
+            // Revoke the token
             refreshtoken.RevokeOn = DateTime.UtcNow;
 
-            await _userManager.UpdateAsync(user);
-            return true;
+            try
+            {
+                await _userManager.UpdateAsync(user);
+                Console.WriteLine("Token revoked successfully");
+                return true;
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error updating user: {ex.Message}");
+                return false;
+            }
         }
-
-
-
 
     }
 }

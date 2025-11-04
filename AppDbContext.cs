@@ -17,6 +17,7 @@ namespace Waster
         public DbSet<ImpactRecord> ImpactRecords { get; set; }
         public DbSet<DashboardStats> dashboardStatus { get; set; }
         public DbSet<RefreshTokens> RefreshTokens { get; set; }
+        public DbSet<BookMark> BookMarks { get; set; }
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             base.OnModelCreating(modelBuilder);
@@ -49,6 +50,65 @@ namespace Waster
                 .WithOne(c => c.VolunteerAssignment)
                 .HasForeignKey<VolunteerAssignment>(v => v.ClaimID)
                 .OnDelete(DeleteBehavior.Restrict);  // ❌ avoid cycles
+
+
+
+            modelBuilder.Entity<DashboardStats>()
+                .HasKey(ds => ds.Id); // Define primary key for DashboardStats
+
+            modelBuilder.Entity<Post>().HasIndex(p => new { p.UserId, p.Status ,p.IsDeleted})
+                .HasDatabaseName("IX_Post_UserId_Status_IsDeleted");
+
+            modelBuilder.Entity<Post>().HasIndex(p =>  p.Status )
+                .HasDatabaseName("IX_Post_Status");
+
+            modelBuilder.Entity<Post>().HasIndex(p => p.IsDeleted)
+                .HasDatabaseName("IX_Post_IsDeleted");
+            modelBuilder.Entity<ClaimPost>()
+                  .HasIndex(c => new { c.RecipientId, c.Status })
+                  .HasDatabaseName("IX_ClaimPost_RecipientId_Status");
+
+            // Index for finding user's posts (most common query)
+            modelBuilder.Entity<Post>()
+                .HasIndex(p => new { p.UserId, p.IsDeleted, p.Status })
+                .HasDatabaseName("IX_Post_UserId_IsDeleted_Status");
+
+            // Index for searching posts by status
+            modelBuilder.Entity<Post>()
+                .HasIndex(p => p.Status)
+                .HasDatabaseName("IX_Post_Status");
+
+            // Index for finding expiring posts
+            modelBuilder.Entity<Post>()
+                .HasIndex(p => p.ExpiresOn)
+                .HasDatabaseName("IX_Post_ExpiresOn");
+
+            // Index for category filtering
+            modelBuilder.Entity<Post>()
+                .HasIndex(p => p.Category)
+                .HasDatabaseName("IX_Post_Category");
+
+            // Index for finding user's claims
+            modelBuilder.Entity<ClaimPost>()
+                .HasIndex(c => new { c.RecipientId, c.Status })
+                .HasDatabaseName("IX_ClaimPost_RecipientId_Status");
+
+            // Index for finding post's claims
+            modelBuilder.Entity<ClaimPost>()
+                .HasIndex(c => new { c.PostId, c.Status })
+                .HasDatabaseName("IX_ClaimPost_PostId_Status");
+
+            // Index for refresh tokens lookup
+            modelBuilder.Entity<RefreshTokens>()
+                .HasIndex(r => r.Token)
+                .HasDatabaseName("IX_RefreshTokens_Token");
+
+            // Index for finding active refresh tokens
+            modelBuilder.Entity<RefreshTokens>()
+                .HasIndex(r => new { r.UserId, r.ExpiresOn })
+                .HasDatabaseName("IX_RefreshTokens_UserId_ExpiresOn");
+
+
         }
 
     }
