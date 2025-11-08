@@ -91,6 +91,12 @@ namespace Waster
             });
 
             builder.Services.AddEndpointsApiExplorer();
+            builder.Services.AddScoped<IBookMarkRepository, BookMarkRepository>();
+            builder.Services.AddScoped<IBrowseRepository, BrowseRepository>();
+
+            // Update Unit of Work registration (if you already have it, just keep one)
+            builder.Services.AddScoped<IUnitOfWork, UnitOfWork>();
+
 
             // Configure JSON options globally for OpenAPI
             builder.Services.Configure<Microsoft.AspNetCore.Http.Json.JsonOptions>(options =>
