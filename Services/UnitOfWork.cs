@@ -7,6 +7,9 @@ namespace Waster.Services
         private readonly AppDbContext _context;
         public readonly IBaseReporesitory<Post> _posts;
         public readonly IBaseReporesitory<AppUser> _users;
+
+        public IBaseReporesitory<Post> Posts => throw new NotImplementedException();
+
         public UnitOfWork(IBaseReporesitory<Post> posts, IBaseReporesitory<AppUser> users, AppDbContext context)
         {
             _context = context;

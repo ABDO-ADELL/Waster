@@ -3,6 +3,7 @@ using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Waster;
 
@@ -11,9 +12,11 @@ using Waster;
 namespace Waster.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    partial class AppDbContextModelSnapshot : ModelSnapshot
+    [Migration("20251107184924_bio2")]
+    partial class bio2
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -256,10 +259,6 @@ namespace Waster.Migrations
                     b.Property<string>("Bio")
                         .HasColumnType("nvarchar(max)");
 
-                    b.Property<string>("BookMarkId")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)");
-
                     b.Property<string>("City")
                         .HasColumnType("nvarchar(max)");
 
@@ -332,30 +331,6 @@ namespace Waster.Migrations
                         .HasFilter("[NormalizedUserName] IS NOT NULL");
 
                     b.ToTable("AspNetUsers", (string)null);
-                });
-
-            modelBuilder.Entity("Waster.Models.DbModels.BookMark", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<Guid>("PostId")
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<string>("UserId")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(450)");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("PostId");
-
-                    b.HasIndex("UserId", "PostId")
-                        .IsUnique()
-                        .HasDatabaseName("IX_BookMark_UserId_PostId_Unique");
-
-                    b.ToTable("BookMarks");
                 });
 
             modelBuilder.Entity("Waster.Models.DbModels.ClaimPost", b =>
@@ -582,25 +557,6 @@ namespace Waster.Migrations
                     b.Navigation("AppUser");
                 });
 
-            modelBuilder.Entity("Waster.Models.DbModels.BookMark", b =>
-                {
-                    b.HasOne("Post", "Post")
-                        .WithMany("BookMarks")
-                        .HasForeignKey("PostId")
-                        .OnDelete(DeleteBehavior.NoAction)
-                        .IsRequired();
-
-                    b.HasOne("Waster.Models.AppUser", "User")
-                        .WithMany("BookMark")
-                        .HasForeignKey("UserId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("Post");
-
-                    b.Navigation("User");
-                });
-
             modelBuilder.Entity("Waster.Models.DbModels.ClaimPost", b =>
                 {
                     b.HasOne("Post", "Post")
@@ -670,8 +626,6 @@ namespace Waster.Migrations
 
             modelBuilder.Entity("Post", b =>
                 {
-                    b.Navigation("BookMarks");
-
                     b.Navigation("Claims");
 
                     b.Navigation("ImpactRecords");
@@ -679,8 +633,6 @@ namespace Waster.Migrations
 
             modelBuilder.Entity("Waster.Models.AppUser", b =>
                 {
-                    b.Navigation("BookMark");
-
                     b.Navigation("ClaimedPosts");
 
                     b.Navigation("Posts");

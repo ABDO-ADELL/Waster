@@ -13,6 +13,7 @@ using Microsoft.Extensions.Options;
 using Microsoft.SqlServer.Server;
 using Scalar.AspNetCore;
 using System.Configuration;
+using System.Text.Json.Serialization; // Add this
 
 
 namespace Waster
@@ -23,8 +24,17 @@ namespace Waster
         {
             var builder = WebApplication.CreateBuilder(args);
 
-            // Add services to the container
-            builder.Services.AddControllers();
+            // Add services to the container with JSON configuration
+            builder.Services.AddControllers()
+                .AddJsonOptions(options =>
+                {
+                    // Handle circular references
+                    options.JsonSerializerOptions.ReferenceHandler = ReferenceHandler.IgnoreCycles;
+                    // Increase max depth to handle deeply nested objects
+                    options.JsonSerializerOptions.MaxDepth = 128;
+                    // Optional: write indented for readability
+                    options.JsonSerializerOptions.WriteIndented = false;
+                });
 
             builder.Services.Configure<Jwt>(builder.Configuration.GetSection("Jwt"));
 
@@ -82,8 +92,27 @@ namespace Waster
 
             builder.Services.AddEndpointsApiExplorer();
 
-            // Add OpenAPI/Swagger
-            builder.Services.AddOpenApi();
+            // Configure JSON options globally for OpenAPI
+            builder.Services.Configure<Microsoft.AspNetCore.Http.Json.JsonOptions>(options =>
+            {
+                options.SerializerOptions.ReferenceHandler = ReferenceHandler.IgnoreCycles;
+                options.SerializerOptions.MaxDepth = 256; // Increase significantly
+            });
+
+            // Add OpenAPI with type exclusions
+            builder.Services.AddOpenApi(options =>
+            {
+                options.AddSchemaTransformer((schema, context, cancellationToken) =>
+                {
+                    // Exclude problematic Identity types from schema generation
+                    if (context.JsonTypeInfo.Type == typeof(Microsoft.AspNetCore.Identity.IdentityUser) ||
+                        context.JsonTypeInfo.Type == typeof(AppUser))
+                    {
+                        return Task.CompletedTask;
+                    }
+                    return Task.CompletedTask;
+                });
+            });
 
             // Add CORS to allow browser access
             builder.Services.AddCors(options =>
@@ -96,7 +125,7 @@ namespace Waster
                 });
             });
 
-                        builder.Services.AddSwaggerGen();
+            builder.Services.AddSwaggerGen();
 
             var app = builder.Build();
 
@@ -131,11 +160,12 @@ namespace Waster
             app.MapGet("/api-docs", () => Results.Redirect("/scalar/v1"))
                 .ExcludeFromDescription();
 
-                        if (app.Environment.IsDevelopment())
-{
-    app.UseSwagger();
-    app.UseSwaggerUI();
-};
+            if (app.Environment.IsDevelopment())
+            {
+                app.UseSwagger();
+                app.UseSwaggerUI();
+            }
+            ;
 
             // Configure the HTTP request pipeline
             app.UseHttpsRedirection();

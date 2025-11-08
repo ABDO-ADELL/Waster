@@ -1,4 +1,5 @@
-﻿using Waster.Models;
+﻿using System.Text.Json.Serialization;
+using Waster.Models;
 
 namespace Waster.Models.DbModels
 {
@@ -10,6 +11,7 @@ namespace Waster.Models.DbModels
         public string VolunteerId { get; set; }
         public DateTime AssignedAt { get; set; } = DateTime.UtcNow;
         public string Status { get; set; } = "Assigned"; // (Assigned, InProgress, Completed)
+        [JsonIgnore]
         public ClaimPost? Claim { get; set; }
     }
 }

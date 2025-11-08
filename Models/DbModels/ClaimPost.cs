@@ -1,4 +1,5 @@
-﻿using Waster.Models;
+﻿using System.Text.Json.Serialization;
+using Waster.Models;
 using Waster.Models.DbModels;
 
 namespace Waster.Models.DbModels
@@ -13,6 +14,7 @@ namespace Waster.Models.DbModels
         public Post Post { get; set; }
         public AppUser Recipient { get; set; }
         public string UserId { get; set; }
+        [JsonIgnore]
         public VolunteerAssignment? VolunteerAssignment { get; set; } // optional
 
     }

@@ -25,7 +25,7 @@ namespace Waster.Controllers
         private readonly IBaseReporesitory<Post> _postRepo;
         private readonly BookMarkBL BookMarkBL;
 
-        public BookMarksController(AppDbContext context,  IBaseReporesitory<Post> postRepo, BookMarkBL bookMarkBL)
+        public BookMarksController(AppDbContext context, IBaseReporesitory<Post> postRepo, BookMarkBL bookMarkBL)
         {
             _context = context;
             _postRepo = postRepo;
@@ -34,7 +34,7 @@ namespace Waster.Controllers
 
 
 
-        
+
         [HttpGet(Name = "Get-BookMarks")]
         public async Task<IActionResult> GetBookMark()
         {
@@ -49,9 +49,9 @@ namespace Waster.Controllers
             return Ok(posts);
         }
 
-        
+
         [HttpPost(Name = "Add-Post-to-BookMark")]
-        public async Task<ActionResult<BookMark>> AddPost([FromQuery]Guid id)
+        public async Task<ActionResult<BookMark>> AddPost([FromQuery] Guid id)
         {
             var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
             if (string.IsNullOrEmpty(userId))
@@ -60,9 +60,9 @@ namespace Waster.Controllers
             var bookMark = await BookMarkBL.AddPostToBookMark(userId, id);
 
             _context.BookMarks.Add(bookMark);
-            
-                await _context.SaveChangesAsync();
-            
+
+            await _context.SaveChangesAsync();
+
 
 
             return CreatedAtAction("GetBookMark", new { id = bookMark.Id }, bookMark);

@@ -4,13 +4,11 @@ using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
 using System.Security.Claims;
 
-
 namespace Waster
 {
     public class AppDbContext : IdentityDbContext<AppUser>
     {
         public AppDbContext(DbContextOptions<AppDbContext> options) : base(options) { }
-
         public DbSet<Post> Posts { get; set; }
         public DbSet<ClaimPost> ClaimPosts { get; set; }
         public DbSet<VolunteerAssignment> VolunteerAssignments { get; set; }
@@ -21,7 +19,6 @@ namespace Waster
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             base.OnModelCreating(modelBuilder);
-
 
             modelBuilder.Entity<AppUser>()
                 .HasMany(u => u.RefreshTokens)
@@ -121,15 +118,13 @@ namespace Waster
                 .HasOne(b => b.Post)
                 .WithMany(p => p.BookMarks)
                 .HasForeignKey(b => b.PostId)
-                .OnDelete(DeleteBehavior.Cascade);
+                .OnDelete(DeleteBehavior.NoAction);
 
-            // Prevent duplicate bookmarks
+            //Prevent duplicate bookmarks
             modelBuilder.Entity<BookMark>()
                 .HasIndex(b => new { b.UserId, b.PostId })
                 .IsUnique()
                 .HasDatabaseName("IX_BookMark_UserId_PostId_Unique");
-
         }
-
     }
 }

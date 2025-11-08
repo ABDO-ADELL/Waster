@@ -18,5 +18,6 @@ namespace Waster.Services
         Task<T> AddAsync(T entity);
      //   Task<T> UpdateAsync(T entity);
         Task<bool> DeleteAsync(Guid id);
+        Task<(object items, int totalCount)> GetFeedAsync(string userId, int pageSize, string? category, bool excludeOwn);
     }
 }

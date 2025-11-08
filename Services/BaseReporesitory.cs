@@ -110,5 +110,9 @@ namespace Waster.Services
             return query;
         }
 
-     }
+        public Task<(object items, int totalCount)> GetFeedAsync(string userId, int pageSize, string? category, bool excludeOwn)
+        {
+            throw new NotImplementedException();
+        }
+    }
 }

@@ -17,16 +17,16 @@ namespace Waster.Controllers
         private readonly IBaseReporesitory<Post> _postRepo;
         private readonly ILogger<PostController> _logger;
         private readonly IFileStorageService _fileStorage; 
-        private readonly BookMarkBL _bookmarkbl;
+        //private readonly BookMarkBL _bookmarkbl;
 
         public PostController(
-        AppDbContext _context,IBaseReporesitory<Post> postRepo,ILogger<PostController> logger,  IFileStorageService fileStorage,BookMarkBL bookMarkBL) 
+        AppDbContext _context,IBaseReporesitory<Post> postRepo,ILogger<PostController> logger,  IFileStorageService fileStorage) 
         {
             _postRepo = postRepo;
             context = _context;
             _logger = logger;
             _fileStorage = fileStorage;
-            _bookmarkbl = bookMarkBL;
+            //_bookmarkbl = bookMarkBL;
         }
 
         [HttpGet("Get All user's Posts")]
@@ -112,15 +112,15 @@ namespace Waster.Controllers
             }
 
             // Check if bookmarked efficiently
-            bool isBookMarked = await context.BookMarks
-                .AnyAsync(b => b.UserId == userId && b.PostId == id);
+            //bool isBookMarked = await context.BookMarks
+            //    .AnyAsync(b => b.UserId == userId && b.PostId == id);
 
             bool isOwner = post.UserId == userId;
 
             return Ok(new
             {
                 post = post.ToResponseDto(includeOwner: isOwner),
-                isBookMarked
+                //isBookMarked
             });
         }
 

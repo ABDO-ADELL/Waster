@@ -50,8 +50,8 @@ namespace Waster.Services
                 .Select(p => new
                 {
                     Post = p,
-                    IsBookmarked = _context.BookMarks.Any(b =>
-                        b.UserId == userId && b.PostId == p.Id)
+                    //IsBookmarked = _context.BookMarks.Any(b =>
+                    //    b.UserId == userId && b.PostId == p.Id)
                 })
                 .ToListAsync();
 
@@ -69,7 +69,7 @@ namespace Waster.Services
                 ExpiresOn = item.Post.ExpiresOn,
                 ImageUrl = item.Post.ImageUrl,
                 Created = item.Post.Created,
-                IsBookmarked = item.IsBookmarked,
+                //IsBookmarked = item.IsBookmarked,
                 Owner = new UserInfoDto
                 {
                     Id = item.Post.AppUser.Id,

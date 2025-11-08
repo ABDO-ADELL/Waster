@@ -46,7 +46,7 @@ namespace Waster.Services
             if (existingBookMark != null)
                 throw new InvalidOperationException("Post is already bookmarked");
 
-        var bookMark = new BookMark
+            var bookMark = new BookMark
             {
                 Id = Guid.NewGuid(),
                 UserId = userId,

@@ -2,6 +2,7 @@
 using Waster.Models.DbModels;
 using System.ComponentModel.DataAnnotations.Schema;
 using System.ComponentModel.DataAnnotations;
+using System.Text.Json.Serialization;
 
 public class Post
 {
@@ -33,9 +34,10 @@ public class Post
     public string UserId { get; set; }
     [ForeignKey(nameof(UserId))]
     public AppUser AppUser { get; set; }
-
+    [JsonIgnore]
     public ICollection<BookMark> BookMarks { get; set; }
-
+    [JsonIgnore]
     public ICollection<ClaimPost> Claims { get; set; }
+    [JsonIgnore]
     public ICollection<ImpactRecord> ImpactRecords { get; set; }
 }
