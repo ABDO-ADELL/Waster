@@ -108,11 +108,6 @@ namespace Waster
             modelBuilder.Entity<BookMark>()
                 .HasKey(b => b.Id);
 
-            modelBuilder.Entity<BookMark>()
-                .HasOne(b => b.User)
-                .WithMany(u => u.BookMark)
-                .HasForeignKey(b => b.UserId)
-                .OnDelete(DeleteBehavior.Cascade);
 
             modelBuilder.Entity<BookMark>()
                 .HasOne(b => b.Post)

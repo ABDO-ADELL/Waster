@@ -24,7 +24,7 @@ public class PostDto
         public string Type { get; set; }
 
         // Optional image data
-        public byte[]? ImageData { get; set; }
+      //  public byte[]? ImageData { get; set; }
 
         [StringLength(50)]
         public string? ImageType { get; set; }
@@ -40,6 +40,7 @@ public class PostDto
         public DateTime ExpiresOn { get; set; }
 
     public string? Category { get; set; }
+    public string? ImageData { get; set; }   // <-- was byte[]
 
 
     // Notice what's NOT here:

@@ -6,7 +6,7 @@ using Microsoft.EntityFrameworkCore.Migrations;
 namespace Waster.Migrations
 {
     /// <inheritdoc />
-    public partial class Fix : Migration
+    public partial class fixbio : Migration
     {
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
@@ -36,6 +36,7 @@ namespace Waster.Migrations
                     City = table.Column<string>(type: "nvarchar(max)", nullable: true),
                     State = table.Column<string>(type: "nvarchar(max)", nullable: true),
                     ProfilePictureUrl = table.Column<string>(type: "nvarchar(max)", nullable: true),
+                    Bio = table.Column<string>(type: "nvarchar(max)", nullable: true),
                     UserName = table.Column<string>(type: "nvarchar(256)", maxLength: 256, nullable: true),
                     NormalizedUserName = table.Column<string>(type: "nvarchar(256)", maxLength: 256, nullable: true),
                     Email = table.Column<string>(type: "nvarchar(256)", maxLength: 256, nullable: true),
@@ -188,11 +189,10 @@ namespace Waster.Migrations
                     Quantity = table.Column<string>(type: "nvarchar(max)", nullable: false),
                     Unit = table.Column<string>(type: "nvarchar(max)", nullable: false),
                     Type = table.Column<string>(type: "nvarchar(max)", nullable: false),
-                    ImageData = table.Column<byte[]>(type: "varbinary(max)", nullable: false),
-                    ImageType = table.Column<string>(type: "nvarchar(max)", nullable: false),
-                    Status = table.Column<string>(type: "nvarchar(max)", nullable: false),
+                    ImageUrl = table.Column<string>(type: "nvarchar(max)", nullable: true),
+                    Status = table.Column<string>(type: "nvarchar(450)", nullable: false),
                     IsValid = table.Column<bool>(type: "bit", nullable: false),
-                    Category = table.Column<string>(type: "nvarchar(max)", nullable: false),
+                    Category = table.Column<string>(type: "nvarchar(450)", nullable: false),
                     Created = table.Column<DateTime>(type: "datetime2", nullable: false),
                     Updated = table.Column<DateTime>(type: "datetime2", nullable: false),
                     Notes = table.Column<string>(type: "nvarchar(max)", nullable: false),
@@ -216,23 +216,47 @@ namespace Waster.Migrations
                 name: "RefreshTokens",
                 columns: table => new
                 {
-                    AppUserId = table.Column<string>(type: "nvarchar(450)", nullable: false),
                     Id = table.Column<int>(type: "int", nullable: false)
                         .Annotation("SqlServer:Identity", "1, 1"),
-                    Token = table.Column<string>(type: "nvarchar(max)", nullable: true),
+                    Token = table.Column<string>(type: "nvarchar(450)", nullable: false),
                     ExpiresOn = table.Column<DateTime>(type: "datetime2", nullable: false),
                     CreatedOn = table.Column<DateTime>(type: "datetime2", nullable: false),
-                    RevokeOn = table.Column<DateTime>(type: "datetime2", nullable: false)
+                    RevokeOn = table.Column<DateTime>(type: "datetime2", nullable: true),
+                    UserId = table.Column<string>(type: "nvarchar(450)", nullable: false)
                 },
                 constraints: table =>
                 {
-                    table.PrimaryKey("PK_RefreshTokens", x => new { x.AppUserId, x.Id });
+                    table.PrimaryKey("PK_RefreshTokens", x => x.Id);
                     table.ForeignKey(
-                        name: "FK_RefreshTokens_AspNetUsers_AppUserId",
-                        column: x => x.AppUserId,
+                        name: "FK_RefreshTokens_AspNetUsers_UserId",
+                        column: x => x.UserId,
                         principalTable: "AspNetUsers",
                         principalColumn: "Id",
                         onDelete: ReferentialAction.Cascade);
+                });
+
+            migrationBuilder.CreateTable(
+                name: "BookMarks",
+                columns: table => new
+                {
+                    Id = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
+                    UserId = table.Column<string>(type: "nvarchar(450)", nullable: false),
+                    PostId = table.Column<Guid>(type: "uniqueidentifier", nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_BookMarks", x => x.Id);
+                    table.ForeignKey(
+                        name: "FK_BookMarks_AspNetUsers_UserId",
+                        column: x => x.UserId,
+                        principalTable: "AspNetUsers",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Cascade);
+                    table.ForeignKey(
+                        name: "FK_BookMarks_Posts_PostId",
+                        column: x => x.PostId,
+                        principalTable: "Posts",
+                        principalColumn: "Id");
                 });
 
             migrationBuilder.CreateTable(
@@ -243,7 +267,7 @@ namespace Waster.Migrations
                     PostId = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
                     RecipientId = table.Column<string>(type: "nvarchar(450)", nullable: false),
                     ClaimedAt = table.Column<DateTime>(type: "datetime2", nullable: false),
-                    Status = table.Column<string>(type: "nvarchar(max)", nullable: false),
+                    Status = table.Column<string>(type: "nvarchar(450)", nullable: false),
                     UserId = table.Column<string>(type: "nvarchar(max)", nullable: false)
                 },
                 constraints: table =>
@@ -359,14 +383,25 @@ namespace Waster.Migrations
                 filter: "[NormalizedUserName] IS NOT NULL");
 
             migrationBuilder.CreateIndex(
-                name: "IX_ClaimPosts_PostId",
-                table: "ClaimPosts",
+                name: "IX_BookMark_UserId_PostId_Unique",
+                table: "BookMarks",
+                columns: new[] { "UserId", "PostId" },
+                unique: true);
+
+            migrationBuilder.CreateIndex(
+                name: "IX_BookMarks_PostId",
+                table: "BookMarks",
                 column: "PostId");
 
             migrationBuilder.CreateIndex(
-                name: "IX_ClaimPosts_RecipientId",
+                name: "IX_ClaimPost_PostId_Status",
                 table: "ClaimPosts",
-                column: "RecipientId");
+                columns: new[] { "PostId", "Status" });
+
+            migrationBuilder.CreateIndex(
+                name: "IX_ClaimPost_RecipientId_Status",
+                table: "ClaimPosts",
+                columns: new[] { "RecipientId", "Status" });
 
             migrationBuilder.CreateIndex(
                 name: "IX_ImpactRecords_PostId",
@@ -379,9 +414,44 @@ namespace Waster.Migrations
                 column: "UserId");
 
             migrationBuilder.CreateIndex(
-                name: "IX_Posts_UserId",
+                name: "IX_Post_Category",
                 table: "Posts",
-                column: "UserId");
+                column: "Category");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_Post_ExpiresOn",
+                table: "Posts",
+                column: "ExpiresOn");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_Post_IsDeleted",
+                table: "Posts",
+                column: "IsDeleted");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_Post_Status",
+                table: "Posts",
+                column: "Status");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_Post_UserId_IsDeleted_Status",
+                table: "Posts",
+                columns: new[] { "UserId", "IsDeleted", "Status" });
+
+            migrationBuilder.CreateIndex(
+                name: "IX_Post_UserId_Status_IsDeleted",
+                table: "Posts",
+                columns: new[] { "UserId", "Status", "IsDeleted" });
+
+            migrationBuilder.CreateIndex(
+                name: "IX_RefreshTokens_Token",
+                table: "RefreshTokens",
+                column: "Token");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_RefreshTokens_UserId_ExpiresOn",
+                table: "RefreshTokens",
+                columns: new[] { "UserId", "ExpiresOn" });
 
             migrationBuilder.CreateIndex(
                 name: "IX_VolunteerAssignments_ClaimID",
@@ -413,6 +483,9 @@ namespace Waster.Migrations
 
             migrationBuilder.DropTable(
                 name: "AspNetUserTokens");
+
+            migrationBuilder.DropTable(
+                name: "BookMarks");
 
             migrationBuilder.DropTable(
                 name: "dashboardStatus");

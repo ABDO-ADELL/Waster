@@ -256,10 +256,6 @@ namespace Waster.Migrations
                     b.Property<string>("Bio")
                         .HasColumnType("nvarchar(max)");
 
-                    b.Property<string>("BookMarkId")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)");
-
                     b.Property<string>("City")
                         .HasColumnType("nvarchar(max)");
 
@@ -591,7 +587,7 @@ namespace Waster.Migrations
                         .IsRequired();
 
                     b.HasOne("Waster.Models.AppUser", "User")
-                        .WithMany("BookMark")
+                        .WithMany()
                         .HasForeignKey("UserId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
@@ -679,8 +675,6 @@ namespace Waster.Migrations
 
             modelBuilder.Entity("Waster.Models.AppUser", b =>
                 {
-                    b.Navigation("BookMark");
-
                     b.Navigation("ClaimedPosts");
 
                     b.Navigation("Posts");

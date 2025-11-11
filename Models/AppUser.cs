@@ -30,9 +30,6 @@ namespace Waster.Models
 
         public ICollection<ClaimPost> ClaimedPosts { get; set; }
         [JsonIgnore]
-        public virtual ICollection<BookMark> BookMark { get; set; }
-        public string BookMarkId { get; set; }
-        [JsonIgnore]
         public ICollection<RefreshTokens> RefreshTokens { get; set; } = new List<RefreshTokens>();
 
 

@@ -28,7 +28,7 @@ namespace Waster.Controllers
 
         // DTOs are better than returning raw strings or entities
         public record UserProfileDto
-        (string Id, string FullName, string Email , string Address , string PhoneNumber );
+        (string Id, string FullName, string Email , string Address , string PhoneNumber , string Bio );
 
         [HttpGet("me")]
         public async Task<IActionResult> GetProfileAsync()
@@ -43,7 +43,8 @@ namespace Waster.Controllers
                     u.Email,
                     u.Address,
                     u.PhoneNumber
-                    
+                    , u.Bio
+
                 ))
                 .AsNoTracking()
                 .FirstOrDefaultAsync();

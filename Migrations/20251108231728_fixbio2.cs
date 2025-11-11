@@ -5,7 +5,7 @@
 namespace Waster.Migrations
 {
     /// <inheritdoc />
-    public partial class RefreshTokens : Migration
+    public partial class fixbio2 : Migration
     {
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)

@@ -145,24 +145,35 @@ namespace Waster.Controllers
             }
 
             string? imageUrl = null;
-            if (model.ImageData != null && model.ImageData.Length > 0)
+            if (!string.IsNullOrEmpty(model.ImageData))
             {
                 try
                 {
-                    _logger.LogInformation("Saving image to file system ({Size} bytes)", model.ImageData.Length);
+                    _logger.LogInformation("Processing image data");
 
-                    // Save and get relative path
+                    // Remove "data:image/...;base64," prefix if present
+                    var base64 = model.ImageData;
+                    var base64Index = base64.IndexOf("base64,");
+                    if (base64Index >= 0)
+                        base64 = base64[(base64Index + 7)..];
+
+                    // Decode base64 → byte[]
+                    var imageBytes = Convert.FromBase64String(base64);
+
+                    _logger.LogInformation("Saving image to file system ({Size} bytes)", imageBytes.Length);
+
+                    // Save using your file storage service
                     imageUrl = await _fileStorage.SaveImageAsync(
-                        model.ImageData,
-                        model.ImageType ?? "image/jpeg"
-                    );
+                        imageBytes,
+                        model.ImageType ?? "image/jpeg");
 
                     _logger.LogInformation("Image saved: {Url}", imageUrl);
+                    
                 }
                 catch (Exception ex)
                 {
                     _logger.LogError(ex, "Failed to save image");
-                    throw new Exception("Failed to save image. Please try again.");
+                    return BadRequest(new { message = "Invalid image data or format." });
                 }
             }
 
@@ -289,35 +300,3 @@ namespace Waster.Controllers
         }
     }
 }
-
-
-
-//[HttpPut("UpdatePost")]
-//public async Task<IActionResult> UpdatePost([FromBody] PostDto model)
-//{
-
-//    var post = await context.Posts.FirstOrDefaultAsync(p => p.Id == model.Id);
-//    if (post == null)
-//    {
-//        return NotFound("Post not found.");
-//    }
-
-//    post.Title = model.Title;
-//    post.Description = model.Description;
-//    post.PickupLocation = model.PickupLocation;
-//    post.Quantity = model.Quantity;
-//    post.ExpiresOn = model.ExpiresOn;
-//    post.UserId = model.UserId;
-//    post.Updated = DateTime.UtcNow;
-//    post.Status = model.Status;
-//    post.ImageData = model.ImageData;
-//    post.ImageType = model.ImageType;
-//    post.Type = model.Type;
-//    post.Unit = model.Unit;
-//    post.IsValid = model.IsValid;
-//    post.IsDeleted = model.IsDeleted;
-//    post.Notes = model.Notes;
-//    // context.Posts.Update(post); no need after fetching it from db
-//    await context.SaveChangesAsync();
-//    return Ok($"Post updated ");
-//}

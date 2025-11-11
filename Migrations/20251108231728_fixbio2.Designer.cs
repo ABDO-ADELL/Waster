@@ -12,8 +12,8 @@ using Waster;
 namespace Waster.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    [Migration("20251103195455_Bio")]
-    partial class Bio
+    [Migration("20251108231728_fixbio2")]
+    partial class fixbio2
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -333,6 +333,30 @@ namespace Waster.Migrations
                     b.ToTable("AspNetUsers", (string)null);
                 });
 
+            modelBuilder.Entity("Waster.Models.DbModels.BookMark", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid>("PostId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("UserId")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(450)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("PostId");
+
+                    b.HasIndex("UserId", "PostId")
+                        .IsUnique()
+                        .HasDatabaseName("IX_BookMark_UserId_PostId_Unique");
+
+                    b.ToTable("BookMarks");
+                });
+
             modelBuilder.Entity("Waster.Models.DbModels.ClaimPost", b =>
                 {
                     b.Property<Guid>("Id")
@@ -557,6 +581,25 @@ namespace Waster.Migrations
                     b.Navigation("AppUser");
                 });
 
+            modelBuilder.Entity("Waster.Models.DbModels.BookMark", b =>
+                {
+                    b.HasOne("Post", "Post")
+                        .WithMany("BookMarks")
+                        .HasForeignKey("PostId")
+                        .OnDelete(DeleteBehavior.NoAction)
+                        .IsRequired();
+
+                    b.HasOne("Waster.Models.AppUser", "User")
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Post");
+
+                    b.Navigation("User");
+                });
+
             modelBuilder.Entity("Waster.Models.DbModels.ClaimPost", b =>
                 {
                     b.HasOne("Post", "Post")
@@ -626,6 +669,8 @@ namespace Waster.Migrations
 
             modelBuilder.Entity("Post", b =>
                 {
+                    b.Navigation("BookMarks");
+
                     b.Navigation("Claims");
 
                     b.Navigation("ImpactRecords");
