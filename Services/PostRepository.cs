@@ -63,7 +63,6 @@ namespace Waster.Services
                 Description = item.Post.Description,
                 Quantity = item.Post.Quantity,
                 Unit = item.Post.Unit,
-                Type = item.Post.Type,
                 Category = item.Post.Category,
                 PickupLocation = item.Post.PickupLocation,
                 ExpiresOn = item.Post.ExpiresOn,

@@ -15,8 +15,6 @@ public class Post
     public string Quantity { get; set; }
     [Required]
     public string Unit { get; set; }
-    [Required]
-    public string Type { get; set; }
     public string? ImageUrl { get; set; }
     public string Status { get; set; } // Available, Claimed, Expired
     public bool IsValid { get; set; }
@@ -24,7 +22,6 @@ public class Post
     public string Category { get; set; }
     public DateTime Created { get; set; }
     public DateTime Updated { get; set; }
-    public string Notes { get; set; }
     [Required]
     public string PickupLocation { get; set; }
     [Required]

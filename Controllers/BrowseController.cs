@@ -53,7 +53,6 @@ namespace Waster.Controllers
                         message = "No posts available at the moment"
                     });
                 }
-
                 return Ok(new
                 {
                     items = items,
@@ -101,42 +100,42 @@ namespace Waster.Controllers
             }
         }
 
-        [HttpGet("nearby")]
-        public async Task<IActionResult> GetNearby([FromQuery] int pageSize = 20)
-        {
-            try
-            {
-                var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
-                if (string.IsNullOrEmpty(userId))
-                    return Unauthorized(new { message = "User not authenticated" });
+        //[HttpGet("nearby")]
+        //public async Task<IActionResult> GetNearby([FromQuery] int pageSize = 20)
+        //{
+        //    try
+        //    {
+        //        var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+        //        if (string.IsNullOrEmpty(userId))
+        //            return Unauthorized(new { message = "User not authenticated" });
 
-                var user = await _context.Users
-                    .Where(u => u.Id == userId)
-                    .Select(u => new { u.City })
-                    .FirstOrDefaultAsync();
+        //        var user = await _context.Users
+        //            .Where(u => u.Id == userId)
+        //            .Select(u => new { u.City })
+        //            .FirstOrDefaultAsync();
 
-                var userCity = user?.City;
+        //        var userCity = user?.City;
 
-                var (items, totalCount) = await _unitOfWork.Browse.GetNearbyPostsAsync(
-                    userId,
-                    userCity,
-                    pageSize);
+        //        var (items, totalCount) = await _unitOfWork.Browse.GetNearbyPostsAsync(
+        //            userId,
+        //            userCity,
+        //            pageSize);
 
-                return Ok(new
-                {
-                    items = items,
-                    totalCount = totalCount,
-                    pageSize = pageSize,
-                    city = userCity,
-                    message = totalCount == 0 ? "No nearby posts found" : null
-                });
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error getting nearby posts");
-                return StatusCode(500, new { message = "An error occurred while fetching posts" });
-            }
-        }
+        //        return Ok(new
+        //        {
+        //            items = items,
+        //            totalCount = totalCount,
+        //            pageSize = pageSize,
+        //            city = userCity,
+        //            message = totalCount == 0 ? "No nearby posts found" : null
+        //        });
+        //    }
+        //    catch (Exception ex)
+        //    {
+        //        _logger.LogError(ex, "Error getting nearby posts");
+        //        return StatusCode(500, new { message = "An error occurred while fetching posts" });
+        //    }
+        //}
 
         [HttpGet("categories")]
         public async Task<IActionResult> GetCategories()

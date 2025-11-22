@@ -6,7 +6,10 @@ using PhoneNumbers;
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using Waster.DTOs;
+using Waster.Helpers;
 using Waster.Models;
+using Waster.Services;
+using static Microsoft.EntityFrameworkCore.DbLoggerCategory;
 
 namespace Waster.Controllers
 {
@@ -17,10 +20,12 @@ namespace Waster.Controllers
     {
         public readonly AppDbContext context;
         private readonly UserManager<AppUser> _userManager;
+        private readonly IUnitOfWork _unitOfWork;
         private readonly ILogger<AccountController> _logger;
 
-        public AccountController(AppDbContext Context, ILogger<AccountController> logger, UserManager<AppUser> userManager)
+        public AccountController(AppDbContext Context, ILogger<AccountController> logger, UserManager<AppUser> userManager,IUnitOfWork unitOfWork)
         {
+            _unitOfWork = unitOfWork;
             context = Context;
             _userManager = userManager;
             _logger = logger;
@@ -54,20 +59,6 @@ namespace Waster.Controllers
 
             return Ok(dto);
         }
-
-
-        //[HttpGet("Name")]
-        //public async Task<IActionResult> GetName() {
-        //    var id = User.FindFirstValue(ClaimTypes.NameIdentifier);
-        //    if (string.IsNullOrEmpty(id))  return Unauthorized("Invalid user identity.");
-
-        //    var user = await context.Users.Where(i=>i.Id==id).FirstOrDefaultAsync();
-        //    string Name = $"{user.FirstName} {user.LastName}";
-
-        //    return Ok(Name);
-        //}
-
-
         public record UpdateNameRequest(string FirstName, string LastName);
 
         [HttpPut("update-name")]
@@ -142,7 +133,6 @@ namespace Waster.Controllers
                     dto.CurrentPassword,
                     dto.NewPassword
                 );
-
                 if (result.Succeeded)
                 {
                     _logger.LogInformation("User {UserId} changed password successfully", userId);
@@ -301,8 +291,48 @@ namespace Waster.Controllers
         }
 
 
+        [HttpGet("Get-All-user-Posts")]
+        public async Task<IActionResult> GetAllPosts([FromQuery]int pageNumber, [FromQuery]int pageSize)
+        {
+            #region verify user id from token
+            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            if (userId == null)
+                return Unauthorized("User ID not found in token.");
+            #endregion
+            var (items, totalCount) =await _unitOfWork.Browse.GetMyPosts(userId , pageNumber, pageSize);
+            if (!items.Any())
+                return NotFound("No posts found for the specified user.");
+            var totalPages = (int)Math.Ceiling(totalCount / (double)pageSize);
+
+            return Ok(new
+            {
+                items = items,
+                pageNumber = pageNumber,
+                pageSize = pageSize,
+                totalCount = totalCount,
+                totalPages = totalPages,
+                hasNext = pageNumber < totalPages,
+                hasPrevious = pageNumber > 1
+            });
+
+        }
 
 
+
+        [HttpDelete("Delete-Account")]
+        public async Task<IActionResult> DeleteAccountAsync()
+        {
+            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            if (string.IsNullOrEmpty(userId))
+                return Unauthorized("Invalid user identity.");
+            var user = await context.Users.FindAsync(userId);
+            if (user == null)
+                return NotFound("User not found.");
+
+            await _userManager.DeleteAsync(user);
+            await context.SaveChangesAsync();
+            return Ok(new { message = "Account deleted successfully." });
+        }
     }
 
 

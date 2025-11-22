@@ -1,5 +1,6 @@
 ﻿using Microsoft.EntityFrameworkCore;
 using Waster.DTOs;
+using static Microsoft.EntityFrameworkCore.DbLoggerCategory;
 
 namespace Waster.Services
 {
@@ -46,6 +47,12 @@ namespace Waster.Services
                     .ToListAsync();
 
                 var items = await MapToPostDtosAsync(randomPosts, userId);
+
+                //    var responseDto = post.ToResponseDto(includeOwner: isOwner);
+
+
+                //    var responseDto = post.ToResponseDto(includeOwner: isOwner);
+
 
                 return (items, totalCount);
             }
@@ -211,8 +218,25 @@ namespace Waster.Services
             }
         }
 
+        public async Task<(List<BrowsePostDto>Items, int TotalCount)> GetMyPosts(string userId  ,int pageNumber, int pageSize)
+        {
+
+            var query =  _context.Posts
+                .Include(p => p.AppUser)
+                .Where(p => p.UserId == userId && !p.IsDeleted);
+            var totalCount = await query.CountAsync();
+
+            var posts = await query
+                     .OrderByDescending(p => p.Created)
+                     .Skip((pageNumber - 1) * pageSize)
+                     .Take(pageSize)
+                     .ToListAsync();
+            var items = await MapToPostDtosAsync(posts, userId);
+            return (items, totalCount);
+        }
         private async Task<List<BrowsePostDto>> MapToPostDtosAsync(List<Post> posts, string userId)
         {
+
             if (!posts.Any())
                 return new List<BrowsePostDto>();
 
@@ -230,12 +254,12 @@ namespace Waster.Services
                 Description = p.Description,
                 Quantity = p.Quantity,
                 Unit = p.Unit,
-                Type = p.Type,
                 Category = p.Category,
                 PickupLocation = p.PickupLocation,
                 ExpiresOn = p.ExpiresOn,
                 ImageUrl = p.ImageUrl,
                 Created = p.Created,
+                Status = p.Status,
                 IsBookmarked = bookmarkedPostIds.Contains(p.Id),
                 Owner = new UserInfoDto
                 {
@@ -247,5 +271,8 @@ namespace Waster.Services
 
             return items;
         }
+
+
+
     }
 }

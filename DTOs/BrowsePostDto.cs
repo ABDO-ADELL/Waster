@@ -10,6 +10,7 @@
         public string Type { get; set; }
         public string Category { get; set; }
         public string PickupLocation { get; set; }
+        public string Status { get; set; }
         public DateTime ExpiresOn { get; set; }
         public DateTime Created { get; set; }
 

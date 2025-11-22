@@ -1,8 +1,7 @@
-﻿using Waster.Controllers;
-using Waster.Helpers;
-using Waster.Models;
-using Waster.Services;
+﻿using Microsoft.AspNetCore.Authentication.Cookies;
+using Microsoft.AspNetCore.Authentication.Google;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.Authentication.OAuth;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
@@ -10,10 +9,16 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.SqlServer;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
+using Microsoft.IdentityModel.Tokens;
 using Microsoft.SqlServer.Server;
 using Scalar.AspNetCore;
 using System.Configuration;
+using System.Text;
 using System.Text.Json.Serialization; // Add this
+using Waster.Controllers;
+using Waster.Helpers;
+using Waster.Models;
+using Waster.Services;
 
 
 namespace Waster
@@ -120,6 +125,41 @@ namespace Waster
                 });
             });
 
+            //***************
+
+
+
+
+            builder.Services.AddAuthentication(options =>
+            {
+                options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
+                options.DefaultChallengeScheme = JwtBearerDefaults.AuthenticationScheme;
+            })
+            .AddJwtBearer(options =>
+            {
+                options.TokenValidationParameters = new TokenValidationParameters
+                {
+                    ValidateIssuer = true,
+                    ValidateAudience = true,
+                    ValidateLifetime = true,
+                    ValidateIssuerSigningKey = true,
+                    ValidIssuer = builder.Configuration["Jwt:Issuer"],
+                    ValidAudience = builder.Configuration["Jwt:Audience"],
+                    IssuerSigningKey = new SymmetricSecurityKey(
+                        Encoding.UTF8.GetBytes(builder.Configuration["Jwt:Key"])
+                    )
+                };
+            })
+            .AddGoogle(googleOptions =>
+            {
+                googleOptions.ClientId = builder.Configuration["Authentication:Google:ClientId"];
+                googleOptions.ClientSecret = builder.Configuration["Authentication:Google:ClientSecret"];
+                googleOptions.SaveTokens = true;
+            });
+
+
+
+            //************************
             // Add CORS to allow browser access
             builder.Services.AddCors(options =>
             {
@@ -136,8 +176,25 @@ namespace Waster
             var app = builder.Build();
 
 
-            app.UseStaticFiles(); // This allows accessing /uploads/images/abc123.jpg
+            //Client ID  1018853528316-972ch9prapdv8e6p5g6jrcepa71k8hod.apps.googleusercontent.com
+            // Client secret  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
+            //UserSecretsId to 'fa560e95-423e-4cb5-8e02-0a08c75dd3ee'
 
+            /*When deploying the app, either:
+
+    Update the app's redirect URI in the Google Console to the app's deployed redirect URI.
+    Create a new Google API registration in the Google Console for the production app with its production redirect URI.
+**/
+
+            app.UseStaticFiles(new StaticFileOptions
+            {
+                OnPrepareResponse = ctx =>
+                {
+                    // Enable CORS for images
+                    ctx.Context.Response.Headers.Append("Access-Control-Allow-Origin", "*");
+                    ctx.Context.Response.Headers.Append("Cache-Control", "public,max-age=600");
+                }
+            });
             app.UseCors("AllowFrontend");
 
             // Enable CORS

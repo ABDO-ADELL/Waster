@@ -28,5 +28,8 @@ namespace Waster.Services
             string? category,
             int pageNumber,
             int pageSize);
+
+        Task<(List<BrowsePostDto> Items, int TotalCount)> GetMyPosts(string userId, int pageNumber, int pageSize);
+
     }
 }

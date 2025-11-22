@@ -1,4 +1,5 @@
 ﻿using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using System.Security.Claims;
@@ -16,11 +17,11 @@ namespace Waster.Controllers
         private readonly AppDbContext context;
         private readonly IBaseReporesitory<Post> _postRepo;
         private readonly ILogger<PostController> _logger;
-        private readonly IFileStorageService _fileStorage; 
+        private readonly IFileStorageService _fileStorage;
         //private readonly BookMarkBL _bookmarkbl;
 
         public PostController(
-        AppDbContext _context,IBaseReporesitory<Post> postRepo,ILogger<PostController> logger,  IFileStorageService fileStorage) 
+        AppDbContext _context, IBaseReporesitory<Post> postRepo, ILogger<PostController> logger, IFileStorageService fileStorage)
         {
             _postRepo = postRepo;
             context = _context;
@@ -29,103 +30,7 @@ namespace Waster.Controllers
             //_bookmarkbl = bookMarkBL;
         }
 
-        [HttpGet("Get All user's Posts")]
-        public async Task<IActionResult> GetAllPosts([FromQuery] PaginationParams paginationParams)
-        {
-            #region verify user id from token
-            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
-            if (userId == null)
-                return Unauthorized("User ID not found in token.");
-            #endregion
-            var query = context.Posts
-                .Where(p => p.UserId == userId && !p.IsDeleted)
-                .OrderByDescending(p => p.Created);
-
-            // pagination
-            var pagedPosts = await query.ToPaginatedListAsync(
-                paginationParams?.PageNumber?? 1,
-                paginationParams?.PageSize?? 10);
-
-            if (!pagedPosts.Items.Any())
-                return NotFound("No posts found for the specified user.");
-
-            var postDtos = pagedPosts.Items.Select(p => p.ToListItemDto()).ToList();
-
-            return Ok(new
-            {
-                items = postDtos,
-                pageNumber = pagedPosts.PageNumber,
-                pageSize = pagedPosts.PageSize,
-                totalCount = pagedPosts.TotalCount,
-                totalPages = pagedPosts.TotalPages,
-                hasPrevious = pagedPosts.HasPrevious,
-                hasNext = pagedPosts.HasNext
-            });
-        }
-
-
-        //2  
-        [HttpGet("Search Posts")]
-        public async Task<IActionResult> SearchPosts
-        ([FromQuery] string? title = null,[FromQuery] string? type = null,[FromQuery] string? status = null,
-         [FromQuery] PaginationParams paginationParams = null)
-        {
-            paginationParams ??= new PaginationParams(); // Default if not provided
-
-            var query = _postRepo.SearchAndFilter(title, type, status, p => !p.IsDeleted && p.IsValid)
-                .OrderByDescending(p => p.Created);
-
-            var pagedPosts = await query.ToPaginatedListAsync(
-                paginationParams.PageNumber,
-                paginationParams.PageSize);
-
-            if (!pagedPosts.Items.Any())
-                return NotFound("No posts found");
-            var postDtos = pagedPosts.Items.Select(p => p.ToListItemDto()).ToList();
-
-            return Ok(new
-            {
-                items = postDtos,
-                pageNumber = pagedPosts.PageNumber,
-                pageSize = pagedPosts.PageSize,
-                totalCount = pagedPosts.TotalCount,
-                totalPages = pagedPosts.TotalPages,
-                hasPrevious = pagedPosts.HasPrevious,
-                hasNext = pagedPosts.HasNext
-            });
-        }
-
-
-        //4
-        [HttpGet("GetPost/{id}", Name = "GetPost")]
-        public async Task<IActionResult> GetPost(Guid id)
-        {
-            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
-            if (userId == null)
-                return Unauthorized("User ID not found in token.");
-
-            var post = await _postRepo.GetByIdAsync(id);
-
-            if (post == null || post.IsDeleted)
-            {
-                return NotFound(new { message = $"Post with ID {id} not found" });
-            }
-
-            // Check if bookmarked efficiently
-            //bool isBookMarked = await context.BookMarks
-            //    .AnyAsync(b => b.UserId == userId && b.PostId == id);
-
-            bool isOwner = post.UserId == userId;
-
-            return Ok(new
-            {
-                post = post.ToResponseDto(includeOwner: isOwner),
-                //isBookMarked
-            });
-        }
-
-        //5
-        [HttpPost("CreatePost")]// Create new post ** Reporesitory pattern approach
+        [HttpPost("Create-Post")]// Create new post ** Reporesitory pattern approach
         public async Task<IActionResult> CreatePost(PostDto model)
         {
             if (!ModelState.IsValid)
@@ -138,8 +43,8 @@ namespace Waster.Controllers
                 return BadRequest(new { message = "Expiry date must be in the future" });
             }
 
-            var user = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-            if (user == null)
+            var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            if (userId == null)
             {
                 return Unauthorized("User must be authenticated to create a post");
             }
@@ -151,16 +56,60 @@ namespace Waster.Controllers
                 {
                     _logger.LogInformation("Processing image data");
 
-                    // Remove "data:image/...;base64," prefix if present
-                    var base64 = model.ImageData;
-                    var base64Index = base64.IndexOf("base64,");
-                    if (base64Index >= 0)
-                        base64 = base64[(base64Index + 7)..];
+                    var base64 = model.ImageData.Trim();
+
+                    // Remove data URI prefix if present
+                    if (base64.Contains(","))
+                    {
+                        var parts = base64.Split(',');
+                        base64 = parts[parts.Length - 1];
+                    }
+
+                    // Remove any whitespace, newlines, or invalid characters
+                    base64 = base64.Replace(" ", "")
+                                   .Replace("\n", "")
+                                   .Replace("\r", "")
+                                   .Replace("\t", "");
+
+                    // Validate base64 string length (must be multiple of 4)
+                    int mod4 = base64.Length % 4;
+                    if (mod4 > 0)
+                    {
+                        base64 += new string('=', 4 - mod4); // Add padding
+                    }
+
+                    _logger.LogInformation("Base64 length after cleanup: {Length}", base64.Length);
 
                     // Decode base64 → byte[]
-                    var imageBytes = Convert.FromBase64String(base64);
+                    byte[] imageBytes;
+                    try
+                    {
+                        imageBytes = Convert.FromBase64String(base64);
+                    }
+                    catch (FormatException ex)
+                    {
+                        _logger.LogError(ex, "Invalid base64 format. First 50 chars: {Preview}",
+                            base64.Length > 50 ? base64.Substring(0, 50) : base64);
+                        return BadRequest(new
+                        {
+                            message = "Invalid image format. Please ensure the image is properly encoded in base64.",
+                            detail = "Base64 string contains invalid characters or incorrect format"
+                        });
+                    }
 
-                    _logger.LogInformation("Saving image to file system ({Size} bytes)", imageBytes.Length);
+                    _logger.LogInformation("Image decoded successfully ({Size} bytes)", imageBytes.Length);
+
+                    // Validate image size (optional: max 5MB)
+                    if (imageBytes.Length > 5 * 1024 * 1024)
+                    {
+                        return BadRequest(new { message = "Image size cannot exceed 5MB" });
+                    }
+
+                    // Validate minimum size (at least 100 bytes for a valid image)
+                    if (imageBytes.Length < 100)
+                    {
+                        return BadRequest(new { message = "Image data is too small to be valid" });
+                    }
 
                     // Save using your file storage service
                     imageUrl = await _fileStorage.SaveImageAsync(
@@ -168,14 +117,19 @@ namespace Waster.Controllers
                         model.ImageType ?? "image/jpeg");
 
                     _logger.LogInformation("Image saved: {Url}", imageUrl);
-                    
                 }
                 catch (Exception ex)
                 {
-                    _logger.LogError(ex, "Failed to save image");
-                    return BadRequest(new { message = "Invalid image data or format." });
+                    _logger.LogError(ex, "Failed to save image. ImageData length: {Length}",
+                        model.ImageData?.Length ?? 0);
+                    return BadRequest(new
+                    {
+                        message = "Failed to process image data.",
+                        detail = ex.Message
+                    });
                 }
             }
+
 
             var post = new Post
             {
@@ -185,32 +139,36 @@ namespace Waster.Controllers
                 Status = "Available",
                 IsValid = true,
                 IsDeleted = false,
-                UserId = user,
+                UserId = userId,
                 Title = model.Title,
                 Description = model.Description,
                 Quantity = model.Quantity,
                 Unit = model.Unit,
-                Type = model.Type,
                 Category = model.Category,
                 ImageUrl = imageUrl, // "/uploads/images/abc123.jpg"
-                Notes = model.Notes,
-                PickupLocation = model.PickupLocation,
+                 PickupLocation = model.PickupLocation,
                 ExpiresOn = model.ExpiresOn
-            };
+             };
+            if (string.IsNullOrEmpty(model.PickupLocation))
+            {
+                var user = await context.Users.FindAsync(userId);
+                user.Address = model.PickupLocation;
+            }
+
 
             await _postRepo.AddAsync(post);
             await context.SaveChangesAsync();  //  Controller decides when to commit
 
             var responseDto = post.ToResponseDto();
-            return CreatedAtRoute("GetPost", new { id = post.Id }, responseDto);
+            return Ok();
 
-
+            //return Ok(new { responseDto });
             //return CreatedAtRoute(routeName: "GetPost", routeValues: new { id = post.Id }, value: post);
 
         }
 
-        //6
-        [HttpPut("Edit post")]
+
+        [HttpPut("Edit-post")]
         public async Task<IActionResult> UpdatePost([FromQuery] Guid id, [FromBody] UpdatePostDto dto)
         {
             if (!ModelState.IsValid)
@@ -220,54 +178,129 @@ namespace Waster.Controllers
             if (existingPost == null)
                 return NotFound("Post Not found");
 
-            // Handle image replacement
-            if (dto.ImageData != null && dto.ImageData.Length > 0)
-            {
-                try
-                {
-                    // Delete old image
-                    if (!string.IsNullOrEmpty(existingPost.ImageUrl))
-                    {
-                        _logger.LogInformation("Deleting old image: {Url}", existingPost.ImageUrl);
-                         _fileStorage.DeleteImageAsync(existingPost.ImageUrl);
-                    }
+            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            if (existingPost.UserId != userId)
+                return Forbid("You are not authorized to update this post");
 
-                    // Save new image
-                    _logger.LogInformation("Saving new image");
-                    existingPost.ImageUrl = await _fileStorage.SaveImageAsync(
-                        dto.ImageData,
-                        dto.ImageType ?? "image/jpeg"
-                    );
-                }
-                catch (Exception ex)
+            // Handle image replacement
+            if (!string.IsNullOrEmpty(dto.ImageData))
+            {
+
+                // Delete old image if it exists
+                if (!string.IsNullOrEmpty(existingPost.ImageUrl))
                 {
-                    _logger.LogError(ex, "Failed to update image");
-                    throw new Exception("Failed to update image. Please try again.");
+                    try
+                    {
+                        _fileStorage.DeleteImageAsync(existingPost.ImageUrl);
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.LogWarning(ex, "Failed to delete old image");
+                    }
                 }
+
+                string? imageUrl = null;
+                {
+                    try
+                    {
+                        _logger.LogInformation("Processing image data");
+
+                        var base64 = dto.ImageData.Trim();
+
+                        // Remove data URI prefix if present
+                        if (base64.Contains(","))
+                        {
+                            var parts = base64.Split(',');
+                            base64 = parts[parts.Length - 1];
+                        }
+
+                        // Remove any whitespace, newlines, or invalid characters
+                        base64 = base64.Replace(" ", "")
+                                       .Replace("\n", "")
+                                       .Replace("\r", "")
+                                       .Replace("\t", "");
+
+                        // Validate base64 string length (must be multiple of 4)
+                        int mod4 = base64.Length % 4;
+                        if (mod4 > 0)
+                        {
+                            base64 += new string('=', 4 - mod4); // Add padding
+                        }
+
+                        _logger.LogInformation("Base64 length after cleanup: {Length}", base64.Length);
+
+                        // Decode base64 → byte[]
+                        byte[] imageBytes;
+                        try
+                        {
+                            imageBytes = Convert.FromBase64String(base64);
+                        }
+                        catch (FormatException ex)
+                        {
+                            _logger.LogError(ex, "Invalid base64 format. First 50 chars: {Preview}",
+                                base64.Length > 50 ? base64.Substring(0, 50) : base64);
+                            return BadRequest(new
+                            {
+                                message = "Invalid image format. Please ensure the image is properly encoded in base64.",
+                                detail = "Base64 string contains invalid characters or incorrect format"
+                            });
+                        }
+
+                        _logger.LogInformation("Image decoded successfully ({Size} bytes)", imageBytes.Length);
+
+                        // Validate image size (optional: max 5MB)
+                        if (imageBytes.Length > 5 * 1024 * 1024)
+                        {
+                            return BadRequest(new { message = "Image size cannot exceed 5MB" });
+                        }
+
+                        // Validate minimum size (at least 100 bytes for a valid image)
+                        if (imageBytes.Length < 100)
+                        {
+                            return BadRequest(new { message = "Image data is too small to be valid" });
+                        }
+
+                        // Save using your file storage service
+                        imageUrl = await _fileStorage.SaveImageAsync(
+                            imageBytes,
+                            dto.ImageType ?? "image/jpeg");
+
+
+                        _logger.LogInformation("Image saved: {Url}", imageUrl);
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.LogError(ex, "Failed to save image. ImageData length: {Length}",
+                            dto.ImageData?.Length ?? 0);
+                        return BadRequest(new
+                        {
+                            message = "Failed to process image data.",
+                            detail = ex.Message
+                        });
+                    }
+                    existingPost.ImageUrl = imageUrl;
+                }
+
+
             }
 
-            // Update other fields
-            if (dto.Title != null) existingPost.Title = dto.Title;
+                // Update other fields
+                if (dto.Title != null) existingPost.Title = dto.Title;
             if (dto.Description != null) existingPost.Description = dto.Description;
             if (dto.Quantity != null) existingPost.Quantity = dto.Quantity;
             if (dto.Unit != null) existingPost.Unit = dto.Unit;
-            if (dto.Type != null) existingPost.Type = dto.Type;
             if (dto.PickupLocation != null) existingPost.PickupLocation = dto.PickupLocation;
             if (dto.ExpiresOn.HasValue) existingPost.ExpiresOn = dto.ExpiresOn.Value;
-            if (dto.Notes != null) existingPost.Notes = dto.Notes;
             if (dto.Category != null) existingPost.Category = dto.Category;
 
             await _postRepo.UpdateAsync(existingPost);
             await context.SaveChangesAsync();
 
             return Ok(existingPost.ToResponseDto());
-
-
         }
 
-
-        //7
-        [HttpDelete("Delete Post")] // soft delete Based on repository pattern
+        
+        [HttpDelete("Delete-Post")] // soft delete Based on repository pattern
         public async Task<IActionResult> DeletePost([FromQuery]Guid id)
         {
 

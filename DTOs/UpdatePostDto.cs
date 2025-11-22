@@ -18,21 +18,17 @@ namespace Waster.DTOs
         [StringLength(50, ErrorMessage = "Unit cannot exceed 50 characters")]
         public string? Unit { get; set; }
 
-        [StringLength(100, ErrorMessage = "Type cannot exceed 100 characters")]
-        public string? Type { get; set; }
-
         [StringLength(500, ErrorMessage = "Pickup location cannot exceed 500 characters")]
         public string? PickupLocation { get; set; }
 
         public DateTime? ExpiresOn { get; set; }
 
-        public byte[]? ImageData { get; set; }
+        public string? ImageData { get; set; }
 
         [StringLength(50)]
         public string? ImageType { get; set; }
 
         [StringLength(500)]
-        public string? Notes { get; set; }
         public string? Category { get; set; }
 
         // NOT included (system managed or immutable):

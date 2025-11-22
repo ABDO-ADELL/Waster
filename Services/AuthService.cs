@@ -34,13 +34,6 @@ namespace Waster.Services
             {
                 return new AuthModel { Message = "Email is already registered!" };
             }
-
-            // Check if username already exists
-            if (await _userManager.FindByNameAsync(model.Email) is not null)
-            {
-                return new AuthModel { Message = "Username is already registered!" };
-            }
-
             // Create new user
             var user = new AppUser
             {
@@ -268,20 +261,15 @@ namespace Waster.Services
                 return false;
             token = token.Trim();
 
-            // FIXED: Eagerly load RefreshTokens navigation property and search properly
+            // Eagerly load RefreshTokens navigation property and search properly
             var user = await _userManager.Users
                 .Include(u => u.RefreshTokens)
-                .FirstOrDefaultAsync(u => u.RefreshTokens != null &&
-                                         u.RefreshTokens.Any(r => r.Token == token));
-
+                .FirstOrDefaultAsync(u => u.RefreshTokens != null &&u.RefreshTokens.Any(r => r.Token == token));
             if (user == null)
             {
-                // Log for debugging
                 Console.WriteLine($"No user found with refresh token: {token.Substring(0, Math.Min(10, token.Length))}...");
                 return false;
             }
-
-            // Find the specific refresh token
             var refreshtoken = user.RefreshTokens.FirstOrDefault(u => u.Token == token);
 
             if (refreshtoken == null)

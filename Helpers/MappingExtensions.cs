@@ -16,14 +16,12 @@ namespace Waster.Helpers
                 Description = post.Description,
                 Quantity = post.Quantity,
                 Unit = post.Unit,
-                Type = post.Type,
                 Category = post.Category,
                 Status = post.Status,
                 PickupLocation = post.PickupLocation,
                 ExpiresOn = post.ExpiresOn,
                 Created = post.Created,
                 ImageUrl = post.ImageUrl,
-                Notes = post.Notes
             };
 
             if (includeOwner && post.AppUser != null)
@@ -51,6 +49,23 @@ namespace Waster.Helpers
                 ExpiresOn = post.ExpiresOn,
                 ImageUrl = post.ImageUrl, 
             };
+        }
+
+    }
+    public static class ImageUrlHelper
+    {
+        public static string GetFullImageUrl(this HttpRequest request, string? imageUrl)
+        {
+            if (string.IsNullOrEmpty(imageUrl))
+                return null;
+
+            // If already a full URL, return as-is
+            if (imageUrl.StartsWith("http://") || imageUrl.StartsWith("https://"))
+                return imageUrl;
+
+            // Build full URL
+            var baseUrl = $"{request.Scheme}://{request.Host}";
+            return $"{baseUrl}{imageUrl}";
         }
     }
 }
