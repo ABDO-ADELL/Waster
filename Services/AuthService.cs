@@ -299,6 +299,45 @@ namespace Waster.Services
                 return false;
             }
         }
+        public async Task<AuthModel> GenerateTokenForUserAsync(AppUser user)
+        {
+            // Ensure RefreshTokens is loaded
+            if (user.RefreshTokens == null)
+            {
+                var userWithTokens = await _userManager.Users
+                    .Include(u => u.RefreshTokens)
+                    .FirstOrDefaultAsync(u => u.Id == user.Id);
+
+                if (userWithTokens != null)
+                {
+                    user = userWithTokens;
+                }
+                else
+                {
+                    user.RefreshTokens = new List<RefreshTokens>();
+                }
+            }
+
+            var jwtSecurityToken = await CreateJwtToken(user);
+            var roles = await _userManager.GetRolesAsync(user);
+
+            var refreshToken = GenerateRefreshToken();
+            user.RefreshTokens.Add(refreshToken);
+            await _userManager.UpdateAsync(user);
+
+            return new AuthModel
+            {
+                Email = user.Email,
+                IsAuthenticated = true,
+                Token = new JwtSecurityTokenHandler().WriteToken(jwtSecurityToken),
+                ExpiresOn = jwtSecurityToken.ValidTo,
+                UserName = user.UserName,
+                Roles = roles.ToList(),
+                RefreshToken = refreshToken.Token,
+                RefreshTokenExpiration = refreshToken.ExpiresOn,
+                Message = "Authentication successful!"
+            };
+        }
 
     }
 }

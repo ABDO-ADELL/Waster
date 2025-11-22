@@ -1,6 +1,7 @@
 ﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.DotNet.Scaffolding.Shared.Messaging;
 using Microsoft.EntityFrameworkCore;
 using PhoneNumbers;
 using System.IdentityModel.Tokens.Jwt;
@@ -320,7 +321,7 @@ namespace Waster.Controllers
 
 
         [HttpDelete("Delete-Account")]
-        public async Task<IActionResult> DeleteAccountAsync()
+        public async Task<IActionResult> DeleteAccountAsync([FromQuery]string password)
         {
             var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
             if (string.IsNullOrEmpty(userId))
@@ -328,6 +329,12 @@ namespace Waster.Controllers
             var user = await context.Users.FindAsync(userId);
             if (user == null)
                 return NotFound("User not found.");
+
+            // Verify password
+            var passwordValid = await _userManager.CheckPasswordAsync(user, password);
+            if (!passwordValid)
+                return BadRequest(new { message = "Invalid password." });
+
 
             await _userManager.DeleteAsync(user);
             await context.SaveChangesAsync();

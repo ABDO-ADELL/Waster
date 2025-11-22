@@ -361,3 +361,11 @@ MigrationBackup/
 
 # Fody - auto-generated XML schema
 FodyWeavers.xsd
+
+# Production secrets - DO NOT COMMIT
+appsettings.Production.json
+
+# User secrets (already covered but making it explicit)
+**/appsettings.*.json
+!appsettings.json
+!appsettings.Development.json

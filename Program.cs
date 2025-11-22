@@ -1,25 +1,13 @@
-﻿using Microsoft.AspNetCore.Authentication.Cookies;
-using Microsoft.AspNetCore.Authentication.Google;
-using Microsoft.AspNetCore.Authentication.JwtBearer;
-using Microsoft.AspNetCore.Authentication.OAuth;
-using Microsoft.AspNetCore.Builder;
+﻿using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Identity;
-using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.EntityFrameworkCore.SqlServer;
-using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.Tokens;
-using Microsoft.SqlServer.Server;
 using Scalar.AspNetCore;
-using System.Configuration;
 using System.Text;
-using System.Text.Json.Serialization; // Add this
-using Waster.Controllers;
+using System.Text.Json.Serialization;
 using Waster.Helpers;
 using Waster.Models;
 using Waster.Services;
-
 
 namespace Waster
 {
@@ -41,8 +29,10 @@ namespace Waster
                     options.JsonSerializerOptions.WriteIndented = false;
                 });
 
+            // Configure JWT settings
             builder.Services.Configure<Jwt>(builder.Configuration.GetSection("Jwt"));
 
+            // Configure Identity
             builder.Services.AddIdentity<AppUser, IdentityRole>(options =>
             {
                 options.Password.RequireDigit = true;
@@ -50,8 +40,6 @@ namespace Waster
                 options.Password.RequireUppercase = true;
                 options.Password.RequireNonAlphanumeric = true;
                 options.Password.RequiredLength = 8;
-                options.Password.RequireUppercase = true;
-                options.Password.RequireLowercase = true;
                 options.Password.RequiredUniqueChars = 1;
 
                 options.Lockout.DefaultLockoutTimeSpan = TimeSpan.FromMinutes(3);
@@ -59,30 +47,34 @@ namespace Waster
                 options.Lockout.AllowedForNewUsers = true;
 
                 options.User.RequireUniqueEmail = true;
+            })
+            .AddEntityFrameworkStores<AppDbContext>()
+            .AddDefaultTokenProviders();
 
+            // Database Context
+            builder.Services.AddDbContext<AppDbContext>(options =>
+                options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
 
-            }).AddEntityFrameworkStores<AppDbContext>()
-                .AddDefaultTokenProviders();
-
-
-            builder.Services.AddScoped<IFileStorageService, FileStorageService>();
-
-            builder.Services.AddDbContext<AppDbContext>(options => options.UseSqlServer(
-                builder.Configuration.GetConnectionString("DefaultConnection")
-                ));
-
-
+            // Register Services
             builder.Services.AddScoped<IAuthService, AuthService>();
+            builder.Services.AddScoped<IFileStorageService, FileStorageService>();
+            builder.Services.AddScoped<IBookMarkRepository, BookMarkRepository>();
+            builder.Services.AddScoped<IBrowseRepository, BrowseRepository>();
+            builder.Services.AddScoped<IUnitOfWork, UnitOfWork>();
             builder.Services.AddTransient(typeof(IBaseReporesitory<>), typeof(BaseReporesitory<>));
+
+            // Configure Authentication (JWT + Google OAuth)
             builder.Services.AddAuthentication(options =>
             {
+                // JWT is the default for API endpoints
                 options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
                 options.DefaultChallengeScheme = JwtBearerDefaults.AuthenticationScheme;
-            }).AddJwtBearer(o =>
+            })
+            .AddJwtBearer(options =>
             {
-                o.RequireHttpsMetadata = false;
-                o.SaveToken = false;
-                o.TokenValidationParameters = new Microsoft.IdentityModel.Tokens.TokenValidationParameters
+                options.RequireHttpsMetadata = false; // Set to true in production if using HTTPS
+                options.SaveToken = true;
+                options.TokenValidationParameters = new TokenValidationParameters
                 {
                     ValidateIssuerSigningKey = true,
                     ValidateIssuer = true,
@@ -90,24 +82,40 @@ namespace Waster
                     ValidateLifetime = true,
                     ValidIssuer = builder.Configuration["Jwt:Issuer"],
                     ValidAudience = builder.Configuration["Jwt:Audience"],
-                    IssuerSigningKey = new Microsoft.IdentityModel.Tokens.SymmetricSecurityKey(System.Text.Encoding.UTF8.GetBytes(builder.Configuration["Jwt:Key"])),
-
+                    IssuerSigningKey = new SymmetricSecurityKey(
+                        Encoding.UTF8.GetBytes(builder.Configuration["Jwt:Key"])
+                    ),
+                    ClockSkew = TimeSpan.Zero // Remove default 5 min clock skew
                 };
+            })
+            .AddGoogle(googleOptions =>
+            {
+                googleOptions.ClientId = builder.Configuration["Authentication:Google:ClientId"];
+                googleOptions.ClientSecret = builder.Configuration["Authentication:Google:ClientSecret"];
+                googleOptions.SaveTokens = true;
+                googleOptions.CallbackPath = "/signin-google";
             });
 
-            builder.Services.AddEndpointsApiExplorer();
-            builder.Services.AddScoped<IBookMarkRepository, BookMarkRepository>();
-            builder.Services.AddScoped<IBrowseRepository, BrowseRepository>();
+            // Configure CORS
+            builder.Services.AddCors(options =>
+            {
+                options.AddPolicy("AllowFrontend", policy =>
+                {
+                    var allowedOrigins = builder.Configuration.GetSection("AllowedOrigins").Get<string[]>()
+                        ?? new[] { "http://localhost:3000" };
 
-            // Update Unit of Work registration (if you already have it, just keep one)
-            builder.Services.AddScoped<IUnitOfWork, UnitOfWork>();
-
+                    policy.WithOrigins(allowedOrigins)
+                          .AllowAnyMethod()
+                          .AllowAnyHeader()
+                          .AllowCredentials();
+                });
+            });
 
             // Configure JSON options globally for OpenAPI
             builder.Services.Configure<Microsoft.AspNetCore.Http.Json.JsonOptions>(options =>
             {
                 options.SerializerOptions.ReferenceHandler = ReferenceHandler.IgnoreCycles;
-                options.SerializerOptions.MaxDepth = 256; // Increase significantly
+                options.SerializerOptions.MaxDepth = 256;
             });
 
             // Add OpenAPI with type exclusions
@@ -125,85 +133,48 @@ namespace Waster
                 });
             });
 
-            //***************
-
-
-
-
-            builder.Services.AddAuthentication(options =>
-            {
-                options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
-                options.DefaultChallengeScheme = JwtBearerDefaults.AuthenticationScheme;
-            })
-            .AddJwtBearer(options =>
-            {
-                options.TokenValidationParameters = new TokenValidationParameters
-                {
-                    ValidateIssuer = true,
-                    ValidateAudience = true,
-                    ValidateLifetime = true,
-                    ValidateIssuerSigningKey = true,
-                    ValidIssuer = builder.Configuration["Jwt:Issuer"],
-                    ValidAudience = builder.Configuration["Jwt:Audience"],
-                    IssuerSigningKey = new SymmetricSecurityKey(
-                        Encoding.UTF8.GetBytes(builder.Configuration["Jwt:Key"])
-                    )
-                };
-            })
-            .AddGoogle(googleOptions =>
-            {
-                googleOptions.ClientId = builder.Configuration["Authentication:Google:ClientId"];
-                googleOptions.ClientSecret = builder.Configuration["Authentication:Google:ClientSecret"];
-                googleOptions.SaveTokens = true;
-            });
-
-
-
-            //************************
-            // Add CORS to allow browser access
-            builder.Services.AddCors(options =>
-            {
-                options.AddPolicy("AllowAll", builder =>
-                {
-                    builder.AllowAnyOrigin()
-                           .AllowAnyMethod()
-                           .AllowAnyHeader();
-                });
-            });
-
+            builder.Services.AddEndpointsApiExplorer();
             builder.Services.AddSwaggerGen();
 
             var app = builder.Build();
 
+            // Configure the HTTP request pipeline
+            if (app.Environment.IsDevelopment())
+            {
+                app.UseSwagger();
+                app.UseSwaggerUI();
+            }
 
-            //Client ID  1018853528316-972ch9prapdv8e6p5g6jrcepa71k8hod.apps.googleusercontent.com
-            // Client secret  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
-            //UserSecretsId to 'fa560e95-423e-4cb5-8e02-0a08c75dd3ee'
-
-            /*When deploying the app, either:
-
-    Update the app's redirect URI in the Google Console to the app's deployed redirect URI.
-    Create a new Google API registration in the Google Console for the production app with its production redirect URI.
-**/
-
+            // Static Files with CORS
             app.UseStaticFiles(new StaticFileOptions
             {
                 OnPrepareResponse = ctx =>
                 {
-                    // Enable CORS for images
                     ctx.Context.Response.Headers.Append("Access-Control-Allow-Origin", "*");
                     ctx.Context.Response.Headers.Append("Cache-Control", "public,max-age=600");
                 }
             });
-            app.UseCors("AllowFrontend");
 
             // Enable CORS
-            app.UseCors("AllowAll");
+            app.UseCors("AllowFrontend");
+
+            // HTTPS Redirection
+            app.UseHttpsRedirection();
+
+            // Routing
+            app.UseRouting();
+
+            // Authentication & Authorization (Order matters!)
+            app.UseAuthentication();
+            app.UseAuthorization();
+
+            // Map Controllers
+            app.MapControllers();
 
             // Map OpenAPI endpoint
             app.MapOpenApi();
 
-            // Map Scalar with custom configuration
+            // Map Scalar API Documentation
             app.MapScalarApiReference(options =>
             {
                 options
@@ -212,32 +183,15 @@ namespace Waster
                     .WithDefaultHttpClient(ScalarTarget.CSharp, ScalarClient.HttpClient);
             });
 
-            // Add a root endpoint to redirect to Scalar
+            // Root endpoint redirects to documentation
             app.MapGet("/", () => Results.Redirect("/scalar/v1"))
                 .ExcludeFromDescription();
 
-            // Add alternative routes for documentation
             app.MapGet("/docs", () => Results.Redirect("/scalar/v1"))
                 .ExcludeFromDescription();
 
             app.MapGet("/api-docs", () => Results.Redirect("/scalar/v1"))
                 .ExcludeFromDescription();
-
-            if (app.Environment.IsDevelopment())
-            {
-                app.UseSwagger();
-                app.UseSwaggerUI();
-            }
-            ;
-
-            // Configure the HTTP request pipeline
-            app.UseHttpsRedirection();
-            app.UseRouting();
-            app.UseAuthentication();
-            app.UseAuthorization();
-
-            app.MapControllers();
-
 
             app.Run();
         }

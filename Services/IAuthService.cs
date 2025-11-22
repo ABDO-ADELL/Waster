@@ -9,7 +9,9 @@ namespace Waster.Services
         Task<string> AddRoleAsync(AddRole model);
 
         Task<AuthModel> RefreshTokenAsync(string token);
-        Task<bool> RevokeTokenAsync(string token); 
+        Task<bool> RevokeTokenAsync(string token);
+        Task<AuthModel> GenerateTokenForUserAsync(AppUser user);
+
 
     }
 }
