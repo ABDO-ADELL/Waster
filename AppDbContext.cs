@@ -16,6 +16,8 @@ namespace Waster
         public DbSet<DashboardStats> dashboardStatus { get; set; }
         public DbSet<RefreshTokens> RefreshTokens { get; set; }
         public DbSet<BookMark> BookMarks { get; set; }
+
+        public DbSet<Notification> Notifications { get; set; }
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             base.OnModelCreating(modelBuilder);
@@ -120,6 +122,27 @@ namespace Waster
                 .HasIndex(b => new { b.UserId, b.PostId })
                 .IsUnique()
                 .HasDatabaseName("IX_BookMark_UserId_PostId_Unique");
+
+            modelBuilder.Entity<Notification>()
+                .HasOne(n => n.User)
+                .WithMany()
+                .HasForeignKey(n => n.UserId)
+                .OnDelete(DeleteBehavior.Cascade);  // Delete notifications when user is deleted
+
+            modelBuilder.Entity<Notification>()
+                .HasOne(n => n.Claim)
+                .WithMany()
+                .HasForeignKey(n => n.ClaimId)
+                .OnDelete(DeleteBehavior.SetNull);  // Keep notification if claim is deleted
+
+            // Index for faster queries (finding user's notifications)
+            modelBuilder.Entity<Notification>()
+                .HasIndex(n => new { n.UserId, n.IsRead })
+                .HasDatabaseName("IX_Notification_UserId_IsRead");
+
+
+
+
         }
     }
 }

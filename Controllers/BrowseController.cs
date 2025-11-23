@@ -1,8 +1,12 @@
 ﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using System.Drawing;
 using System.Security.Claims;
 using Waster.Services;
+using static Microsoft.EntityFrameworkCore.DbLoggerCategory;
+using static System.Net.Mime.MediaTypeNames;
+using static System.Runtime.InteropServices.JavaScript.JSType;
 
 namespace Waster.Controllers
 {
@@ -29,7 +33,8 @@ namespace Waster.Controllers
         public async Task<IActionResult> GetFeed(
             [FromQuery] int pageSize = 20,
             [FromQuery] string? category = null,
-            [FromQuery] bool excludeOwn = true)
+            [FromQuery] bool excludeOwn = true,
+            [FromQuery]int? pageNumber=1)
         {
             try
             {
@@ -53,12 +58,18 @@ namespace Waster.Controllers
                         message = "No posts available at the moment"
                     });
                 }
+                var totalPages = (int)Math.Ceiling(totalCount / (double)pageSize);
+                
                 return Ok(new
                 {
                     items = items,
                     totalCount = totalCount,
                     pageSize = pageSize,
-                    category = category
+                    category = category,
+                    pageNumber = pageNumber,
+                    totalPages = totalPages,
+                    hasNext = pageNumber < totalPages,
+                    hasPrevious = pageNumber > 1
                 });
             }
             catch (Exception ex)

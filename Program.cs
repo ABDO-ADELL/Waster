@@ -6,6 +6,7 @@ using Scalar.AspNetCore;
 using System.Text;
 using System.Text.Json.Serialization;
 using Waster.Helpers;
+using Waster.Hubs;
 using Waster.Models;
 using Waster.Services;
 
@@ -62,6 +63,11 @@ namespace Waster
             builder.Services.AddScoped<IBrowseRepository, BrowseRepository>();
             builder.Services.AddScoped<IUnitOfWork, UnitOfWork>();
             builder.Services.AddTransient(typeof(IBaseReporesitory<>), typeof(BaseReporesitory<>));
+            builder.Services.AddScoped<INotificationService, NotificationService>();
+
+
+            // Add SignalR
+            builder.Services.AddSignalR();
 
             // Configure Authentication (JWT + Google OAuth)
             builder.Services.AddAuthentication(options =>
@@ -169,7 +175,9 @@ namespace Waster
             app.UseAuthorization();
 
             // Map Controllers
+            app.MapHub<NotificationHub>("/notificationHub");
             app.MapControllers();
+
 
             // Map OpenAPI endpoint
             app.MapOpenApi();
