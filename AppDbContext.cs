@@ -133,7 +133,7 @@ namespace Waster
                 .HasOne(n => n.Claim)
                 .WithMany()
                 .HasForeignKey(n => n.ClaimId)
-                .OnDelete(DeleteBehavior.SetNull);  // Keep notification if claim is deleted
+                .OnDelete(DeleteBehavior.NoAction);  // Keep notification if claim is deleted
 
             // Index for faster queries (finding user's notifications)
             modelBuilder.Entity<Notification>()
