@@ -66,7 +66,7 @@ namespace Waster.Services
             }
         }
 
-        public async Task<(List<BrowsePostDto> Items, int TotalCount)> GetExpiringSoonAsync(
+        public async Task<(List<BrowsePostDto> Items, int TotalCount)>GetExpiringSoonAsync(
             string userId,
             int hours,
             int pageSize)

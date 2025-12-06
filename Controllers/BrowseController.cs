@@ -82,7 +82,8 @@ namespace Waster.Controllers
         [HttpGet("expiring-soon")]
         public async Task<IActionResult> GetExpiringSoon(
             [FromQuery] int hours = 24,
-            [FromQuery] int pageSize = 20)
+            [FromQuery] int pageSize = 20,
+            [FromQuery] int? pageNumber = 1)
         {
             try
             {
@@ -100,6 +101,7 @@ namespace Waster.Controllers
                     items = items,
                     totalCount = totalCount,
                     pageSize = pageSize,
+                    pageNumber= pageNumber,
                     hoursThreshold = hours,
                     message = totalCount == 0 ? "No posts expiring soon" : null
                 });

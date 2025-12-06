@@ -29,11 +29,7 @@ namespace Waster.Controllers
             _configuration = configuration;
         }
 
-        /// <summary>
-        /// Authenticate with Google ID Token from Flutter
-        /// </summary>
-        /// <param name="request">Google ID Token from Flutter Google Sign-In</param>
-        /// <returns>JWT token and user info</returns>
+        //Authenticate with Google ID Token 
         [HttpPost("google-signin")]
         public async Task<IActionResult> GoogleSignIn([FromBody] GoogleSignInRequest request)
         {
@@ -144,9 +140,7 @@ namespace Waster.Controllers
             }
         }
 
-        /// <summary>
-        /// Verify Google ID token
-        /// </summary>
+        // Verify Google ID token
         private async Task<GoogleJsonWebSignature.Payload> VerifyGoogleToken(string idToken)
         {
             try
@@ -167,9 +161,7 @@ namespace Waster.Controllers
         }
     }
 
-    /// <summary>
-    /// Request model for Google Sign-In
-    /// </summary>
+    // Request model for Google Sign-In
     public class GoogleSignInRequest
     {
         public string IdToken { get; set; }
