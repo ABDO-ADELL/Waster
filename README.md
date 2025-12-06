@@ -275,33 +275,13 @@ The application uses SignalR for real-time notifications:
    - Claim approvals
    - Claim rejections
 
-## 🤝 Contributing
 
-Contributions are welcome! Please follow these steps:
-
-1. Fork the repository
-2. Create a feature branch (`git checkout -b feature/AmazingFeature`)
-3. Commit your changes (`git commit -m 'Add some AmazingFeature'`)
-4. Push to the branch (`git push origin feature/AmazingFeature`)
-5. Open a Pull Request
-
-## 📝 License
-
-This project is licensed under the MIT License - see the LICENSE file for details.
 
 ## 👥 Authors
 
-- Your Name - Initial work
+- Abdelrahman Adel
 
 ## 🙏 Acknowledgments
 
-- ASP.NET Core team for the excellent framework
-- All contributors and testers
+- Abdelrahman Adel
 
-## 📞 Support
-
-For support, email support@wasterapi.com or open an issue in the repository.
-
----
-
-**Note**: Remember to never commit sensitive information like connection strings, API keys, or secrets to version control. Use User Secrets for development and environment variables for production.
