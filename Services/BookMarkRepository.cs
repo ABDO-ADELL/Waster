@@ -1,5 +1,8 @@
 ﻿using Microsoft.EntityFrameworkCore;
+using Waster.DTOs;
+using Waster.Helpers;
 using Waster.Models.DbModels;
+
 
 namespace Waster.Services
 {
@@ -14,21 +17,29 @@ namespace Waster.Services
             _logger = logger;
         }
 
-        public async Task<List<Post>> GetUserBookmarksAsync(string userId)
+        public async Task<(List<PostListItemDto> , int totalCount)> GetUserBookmarksAsync(string userId, int pageSize, int pageNumber)
         {
             try
             {
-                var posts = await _context.BookMarks
+                var query =  _context.BookMarks
                     .AsNoTracking()
                     .Where(b => b.UserId == userId)
                     .Include(b => b.Post)
-                        .ThenInclude(p => p.AppUser)
+                    .ThenInclude(p => p.AppUser)
                     .Select(b => b.Post)
-                    .Where(p => !p.IsDeleted && p.IsValid)
-                    .OrderByDescending(p => p.Created)
-                    .ToListAsync();
+                    .Where(p => !p.IsDeleted && p.IsValid);
 
-                return posts;
+                int totalCount = await query.CountAsync();
+
+                var posts = await query.OrderByDescending(p => p.Created)
+                        .Skip((pageNumber - 1) * pageSize).Take(pageSize).ToListAsync();
+                var bookmarkStatus = await posts.GetBookmarkStatusAsync(userId, _context);
+                //var postDtos =  posts.Select(async p => p.ToListItemDto(userId , _context , posts));
+                var postDtos = await Task.WhenAll(posts.Select(p => p.ToListItemDto(userId, _context, posts)));
+
+
+
+                return (postDtos.ToList(), totalCount);
             }
             catch (Exception ex)
             {

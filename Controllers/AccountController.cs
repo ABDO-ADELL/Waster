@@ -302,7 +302,7 @@ namespace Waster.Controllers
             #endregion
             var (items, totalCount) =await _unitOfWork.Browse.GetMyPosts(userId , pageNumber, pageSize);
             if (!items.Any())
-                return NotFound("No posts found for the specified user.");
+                return NotFound(new { message = "No posts found for the specified user.", items });
             var totalPages = (int)Math.Ceiling(totalCount / (double)pageSize);
 
             return Ok(new

@@ -21,6 +21,8 @@ namespace Waster.DTOs
 
         // Only include if user is the owner
         public UserInfoDto? Owner { get; set; }
+
+        public bool? isBokkmarked { get; set; }
     }
 
     public class PostListItemDto
@@ -31,7 +33,9 @@ namespace Waster.DTOs
         public string Status { get; set; }
         public string Category { get; set; }
         public DateTime ExpiresOn { get; set; }
-        public string? ImageUrlRelative { get; set; } 
+        public string? ImageUrlRelative { get; set; }
+        public bool? IsBookmarked { get; set; } 
+
 
         public string? ImageUrl { get; set; }
         public bool HasImage => !string.IsNullOrEmpty(ImageUrl);

@@ -1,5 +1,7 @@
 ﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Infrastructure;
 using System.Security.Claims;
 using Waster.Helpers;
 using Waster.Services;
@@ -23,7 +25,7 @@ namespace Waster.Controllers
         }
 
         [HttpGet]
-        public async Task<IActionResult> GetBookmarks()
+        public async Task<IActionResult> GetBookmarks([FromQuery]int pageNumber = 1 , [FromQuery] int pageSize=10)
         {
             try
             {
@@ -31,17 +33,33 @@ namespace Waster.Controllers
                 if (string.IsNullOrEmpty(userId))
                     return Unauthorized(new { message = "User not authenticated" });
 
-                var posts = await _unitOfWork.BookMarks.GetUserBookmarksAsync(userId);
+                var (postDtos, totalCount) = await _unitOfWork.BookMarks.GetUserBookmarksAsync(userId , pageSize, pageNumber);
 
-                if (!posts.Any())
-                    return Ok(new { message = "No bookmarks found", items = new List<object>() });
+                if (totalCount == 0)
+                {
+                    return Ok(new
+                    {
+                        items = postDtos,
+                        totalCount = 0,
+                        pageSize = pageSize,
+                        message = "No posts available at the moment"
+                    });
+                }
 
-                var postDtos = posts.Select(p => p.ToListItemDto()).ToList();
+                var totalPages = (int)Math.Ceiling(totalCount / (double)pageSize);
+
 
                 return Ok(new
                 {
                     items = postDtos,
-                    count = postDtos.Count
+                    count = postDtos.Count,
+                    totalCount = totalCount,
+                    pageSize = pageSize,
+                    pageNumber = pageNumber,
+                    totalPages = totalPages,
+                    hasNext = pageNumber < totalPages,
+                    hasPrevious = pageNumber > 1
+
                 });
             }
             catch (Exception ex)
@@ -52,7 +70,7 @@ namespace Waster.Controllers
         }
 
         [HttpPost("{postId}")]
-        public async Task<IActionResult> AddBookmark(Guid postId)
+        public async Task<IActionResult> AddBookmark([FromQuery]Guid PostId)
         {
             try
             {
@@ -60,10 +78,10 @@ namespace Waster.Controllers
                 if (string.IsNullOrEmpty(userId))
                     return Unauthorized(new { message = "User not authenticated" });
 
-                var bookmark = await _unitOfWork.BookMarks.AddBookmarkAsync(userId, postId);
+                var bookmark = await _unitOfWork.BookMarks.AddBookmarkAsync(userId, PostId);
                 await _unitOfWork.CompleteAsync();
 
-                _logger.LogInformation("User {UserId} bookmarked post {PostId}", userId, postId);
+                _logger.LogInformation("User {UserId} bookmarked post {PostId}", userId, PostId);
 
                 return CreatedAtAction(
                     nameof(GetBookmarks),
@@ -85,13 +103,13 @@ namespace Waster.Controllers
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error adding bookmark for post {PostId}", postId);
+                _logger.LogError(ex, "Error adding bookmark for post {PostId}", PostId);
                 return StatusCode(500, new { message = "An error occurred while adding bookmark" });
             }
         }
 
-        [HttpDelete("{postId}")]
-        public async Task<IActionResult> RemoveBookmark(Guid postId)
+        [HttpDelete("Remove-Bookmark")]
+        public async Task<IActionResult> RemoveBookmark([FromQuery]Guid postId)
         {
             try
             {
@@ -117,8 +135,8 @@ namespace Waster.Controllers
             }
         }
 
-        [HttpGet("check/{postId}")]
-        public async Task<IActionResult> CheckBookmark(Guid postId)
+        [HttpGet("Check-Bookmark")]
+        public async Task<IActionResult> CheckBookmark([FromQuery]Guid postId)
         {
             try
             {

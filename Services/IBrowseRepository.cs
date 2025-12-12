@@ -20,7 +20,7 @@ namespace Waster.Services
             string? userCity,
             int pageSize);
 
-        Task<List<CategoryCountDto>> GetCategoriesAsync();
+        Task<List<CategoryCountDto>> GetCategoriesAsync(string userId);
 
         Task<(List<BrowsePostDto> Items, int TotalCount)> SearchPostsAsync(
             string userId,

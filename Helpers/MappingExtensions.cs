@@ -1,4 +1,6 @@
-﻿using Waster.DTOs;
+﻿using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Hosting;
+using Waster.DTOs;
 using Waster.Services;
 
 namespace Waster.Helpers
@@ -37,8 +39,10 @@ namespace Waster.Helpers
             return dto;
         }
 
-        public static PostListItemDto ToListItemDto(this Post post)
+        public static async Task<PostListItemDto>  ToListItemDto(this Post post,string userId , AppDbContext _context, List<Post> posts)
         {
+            var bookmarkStatus =  await posts.GetBookmarkStatusAsync(userId, _context);
+
             return new PostListItemDto
             {
                 Id = post.Id,
@@ -47,7 +51,9 @@ namespace Waster.Helpers
                 Status = post.Status,
                 Category = post.Category,
                 ExpiresOn = post.ExpiresOn,
-                ImageUrl = post.ImageUrl, 
+                ImageUrl = post.ImageUrl,
+                IsBookmarked = bookmarkStatus.GetValueOrDefault(post.Id, false)
+
             };
         }
 
@@ -66,6 +72,19 @@ namespace Waster.Helpers
             // Build full URL
             var baseUrl = $"{request.Scheme}://{request.Host}";
             return $"{baseUrl}{imageUrl}";
+     
+        
         }
+    
+    
+    
+
+
     }
+
+
+
+
+
+
 }

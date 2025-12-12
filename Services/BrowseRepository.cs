@@ -1,6 +1,7 @@
 ﻿using Microsoft.EntityFrameworkCore;
 using System.Drawing;
 using Waster.DTOs;
+using Waster.Helpers;
 using static Microsoft.EntityFrameworkCore.DbLoggerCategory;
 using static System.Net.Mime.MediaTypeNames;
 using static System.Runtime.InteropServices.JavaScript.JSType;
@@ -18,11 +19,8 @@ namespace Waster.Services
             _logger = logger;
         }
 
-        public async Task<(List<BrowsePostDto> Items, int TotalCount)> GetFeedAsync(
-            string userId,
-            int pageSize,
-            string? category,
-            bool excludeOwn)
+        public async Task<(List<BrowsePostDto> Items, int TotalCount)> GetFeedAsync
+            (string userId,int pageSize,string? category,bool excludeOwn)
         {
             try
             {
@@ -31,7 +29,7 @@ namespace Waster.Services
                     .Where(p => p.Status == "Available" &&
                                p.IsValid &&
                                !p.IsDeleted &&
-                               p.ExpiresOn > DateTime.UtcNow);
+                               p.ExpiresOn > DateTime.UtcNow).AsNoTracking();
 
                 if (excludeOwn)
                     query = query.Where(p => p.UserId != userId);
@@ -82,7 +80,7 @@ namespace Waster.Services
                                !p.IsDeleted &&
                                p.ExpiresOn > DateTime.UtcNow &&
                                p.ExpiresOn <= expiryThreshold &&
-                               p.UserId != userId);
+                               p.UserId != userId).AsNoTracking();
 
                 var totalCount = await query.CountAsync();
 
@@ -145,7 +143,7 @@ namespace Waster.Services
             }
         }
 
-        public async Task<List<CategoryCountDto>> GetCategoriesAsync()
+        public async Task<List<CategoryCountDto>> GetCategoriesAsync(string userId)
         {
             try
             {
@@ -153,7 +151,7 @@ namespace Waster.Services
                     .Where(p => p.Status == "Available" &&
                                p.IsValid &&
                                !p.IsDeleted &&
-                               p.ExpiresOn > DateTime.UtcNow)
+                               p.ExpiresOn > DateTime.UtcNow && p.UserId!= userId)
                     .GroupBy(p => p.Category)
                     .Select(g => new CategoryCountDto
                     {
@@ -161,7 +159,7 @@ namespace Waster.Services
                         Count = g.Count()
                     })
                     .OrderByDescending(c => c.Count)
-                    .ToListAsync();
+                    .AsNoTracking().ToListAsync();
 
                 return categories;
             }
@@ -237,7 +235,7 @@ namespace Waster.Services
             var items = await MapToPostDtosAsync(posts, userId);
             return (items, totalCount);
         }
-        private async Task<List<BrowsePostDto>> MapToPostDtosAsync(List<Post> posts, string userId)
+        public async Task<List<BrowsePostDto>> MapToPostDtosAsync(List<Post> posts, string userId)
         {
 
             if (!posts.Any())
@@ -245,10 +243,13 @@ namespace Waster.Services
 
             var postIds = posts.Select(p => p.Id).ToList();
 
-            var bookmarkedPostIds = await _context.BookMarks
-                .Where(b => b.UserId == userId && postIds.Contains(b.PostId))
-                .Select(b => b.PostId)
-                .ToListAsync();
+            //var bookmarkedPostIds = await _context.BookMarks
+            //    .Where(b => b.UserId == userId && postIds.Contains(b.PostId))
+            //    .Select(b => b.PostId)
+            //    .ToListAsync();
+
+            var bookmarkStatus = await posts.GetBookmarkStatusAsync(userId, _context);
+
 
             var items = posts.Select(p => new BrowsePostDto
             {
@@ -263,7 +264,8 @@ namespace Waster.Services
                 ImageUrl = p.ImageUrl,
                 Created = p.Created,
                 Status = p.Status,
-                IsBookmarked = bookmarkedPostIds.Contains(p.Id),
+                //IsBookmarked = bookmarkedPostIds.Contains(p.Id),
+                IsBookmarked = bookmarkStatus.GetValueOrDefault(p.Id, false), 
                 Owner = new UserInfoDto
                 {
                     Id = p.AppUser.Id,

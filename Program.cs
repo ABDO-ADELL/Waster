@@ -57,6 +57,7 @@ namespace Waster
                 options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
 
             // Register Services
+            builder.Services.AddScoped<IClaimPostService, ClaimPostService>();
             builder.Services.AddScoped<IAuthService, AuthService>();
             builder.Services.AddScoped<IFileStorageService, FileStorageService>();
             builder.Services.AddScoped<IBookMarkRepository, BookMarkRepository>();

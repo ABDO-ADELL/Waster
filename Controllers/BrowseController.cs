@@ -155,7 +155,11 @@ namespace Waster.Controllers
         {
             try
             {
-                var categories = await _unitOfWork.Browse.GetCategoriesAsync();
+                string userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+                if (string.IsNullOrEmpty(userId))
+                    return BadRequest(new { message = "User not authenticated" });
+
+                var categories = await _unitOfWork.Browse.GetCategoriesAsync(userId);
 
                 return Ok(new
                 {
