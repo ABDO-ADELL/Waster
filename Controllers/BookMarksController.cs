@@ -4,7 +4,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using System.Security.Claims;
 using Waster.Helpers;
-using Waster.Services;
+using Waster.Interfaces;
 
 namespace Waster.Controllers
 {
@@ -24,7 +24,7 @@ namespace Waster.Controllers
             _logger = logger;
         }
 
-        [HttpGet]
+        [HttpGet("Bookmarks")]
         public async Task<IActionResult> GetBookmarks([FromQuery]int pageNumber = 1 , [FromQuery] int pageSize=10)
         {
             try
@@ -108,7 +108,7 @@ namespace Waster.Controllers
             }
         }
 
-        [HttpDelete("Remove-Bookmark")]
+        [HttpDelete("Bookmark")]
         public async Task<IActionResult> RemoveBookmark([FromQuery]Guid postId)
         {
             try
@@ -135,7 +135,7 @@ namespace Waster.Controllers
             }
         }
 
-        [HttpGet("Check-Bookmark")]
+        [HttpGet("IsBookmarked")]
         public async Task<IActionResult> CheckBookmark([FromQuery]Guid postId)
         {
             try

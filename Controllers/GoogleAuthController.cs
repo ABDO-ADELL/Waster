@@ -3,8 +3,9 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.SqlServer.Server;
 using System.Security.Claims;
+using Waster.Interfaces;
 using Waster.Models;
-using Waster.Services;
+using Waster.Models.DbModels;
 
 namespace Waster.Controllers
 {
@@ -16,8 +17,9 @@ namespace Waster.Controllers
         private readonly IAuthService _authService;
         private readonly ILogger<GoogleAuthController> _logger;
         private readonly IConfiguration _configuration;
+        private readonly AppDbContext _context;
 
-        public GoogleAuthController(
+        public GoogleAuthController(AppDbContext context,
             UserManager<AppUser> userManager,
             IAuthService authService,
             ILogger<GoogleAuthController> logger,
@@ -27,6 +29,7 @@ namespace Waster.Controllers
             _authService = authService;
             _logger = logger;
             _configuration = configuration;
+            _context = context;
         }
 
         //Authenticate with Google ID Token 
@@ -88,6 +91,16 @@ namespace Waster.Controllers
                             errors = createResult.Errors.Select(e => e.Description)
                         });
                     }
+                    var dashboard = new DashboardStats
+                    {
+                        UserId = user.Id,
+                        TotalDonations = 0,
+                        MealsServedInKG = 0,
+                        AvailablePosts = 0,
+                        PendingClaims = 0,
+                        Monthlygoals = 0,
+                        LastUpdated = DateTime.UtcNow
+                    };
 
                     // Add external login info
                     await _userManager.AddLoginAsync(user, new UserLoginInfo(
@@ -96,6 +109,9 @@ namespace Waster.Controllers
                         "Google"));
 
                     _logger.LogInformation("New user created from Google login: {Email}", email);
+                    await _context.dashboardStatus.AddAsync(dashboard);
+                    await _context.SaveChangesAsync();
+
                 }
                 else
                 {

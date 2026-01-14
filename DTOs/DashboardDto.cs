@@ -1,18 +1,25 @@
-﻿namespace Waster.Models.DTOs
+﻿using AutoMapper;
+using System.ComponentModel.DataAnnotations.Schema;
+using Waster.Models.DbModels;
+
+namespace Waster.Models.DTOs
 {
     public class DashboardResponseDto
     {
-        public int TotalDonations { get; set; }
-        public int MealsServed { get; set; }
-        public int AvailablePosts { get; set; }
-        public int ActiveUsers { get; set; }
-        public int PendingClaims { get; set; }
-        public int CompletedToday { get; set; }
-
-        public List<CategoryStatsDto> CategoryBreakdown { get; set; }
-        public List<RecentActivityDto> RecentActivity { get; set; }
+        public int TotalDonations { get; set; } = 0;
+        public double MealsServedInKG { get; set; } = 0;
+        public int AvailablePosts { get; set; } = 0;
+        public int TotalClaims { get; set; } = 0;
+        public int PendingClaims { get; set; } = 0;
+        public int Monthlygoals { get; set; } = 0;
     }
-
+    public class DashboardProfile :Profile
+    {
+        public DashboardProfile()
+        {
+            CreateMap<DashboardStats, DashboardResponseDto>().ReverseMap();
+        }
+    }
     public class CategoryStatsDto
     {
         public string Category { get; set; }

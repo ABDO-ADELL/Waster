@@ -29,6 +29,8 @@ namespace Waster.DTOs
 
         // Post owner info (for recipient to see)
         public UserTransactionDto PostOwner { get; set; }
+
+
     }
 
     public class PostSummaryDto
@@ -39,5 +41,21 @@ namespace Waster.DTOs
         public string Location { get; set; }
         public string Status { get; set; }
         public DateTime? ExpiryDate { get; set; }
+    }
+    public class Result<T>
+    {
+        public bool IsSuccess { get; }
+        public T Value { get; }
+        public string Error { get; }
+
+        private Result(bool isSuccess, T value, string error)
+        {
+            IsSuccess = isSuccess;
+            Value = value;
+            Error = error;
+        }
+
+        public static Result<T> Success(T value) => new(true, value, null);
+        public static Result<T> Failure(string error) => new(false, default, error);
     }
 }

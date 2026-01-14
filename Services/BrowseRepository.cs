@@ -2,6 +2,7 @@
 using System.Drawing;
 using Waster.DTOs;
 using Waster.Helpers;
+using Waster.Interfaces;
 using static Microsoft.EntityFrameworkCore.DbLoggerCategory;
 using static System.Net.Mime.MediaTypeNames;
 using static System.Runtime.InteropServices.JavaScript.JSType;

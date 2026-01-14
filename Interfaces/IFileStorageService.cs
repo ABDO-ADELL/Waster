@@ -1,4 +1,4 @@
-﻿namespace Waster.Services
+﻿namespace Waster.Interfaces
 {
     public interface IFileStorageService
     {

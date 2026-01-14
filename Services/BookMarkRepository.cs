@@ -1,6 +1,7 @@
 ﻿using Microsoft.EntityFrameworkCore;
 using Waster.DTOs;
 using Waster.Helpers;
+using Waster.Interfaces;
 using Waster.Models.DbModels;
 
 
@@ -17,29 +18,66 @@ namespace Waster.Services
             _logger = logger;
         }
 
-        public async Task<(List<PostListItemDto> , int totalCount)> GetUserBookmarksAsync(string userId, int pageSize, int pageNumber)
+        public async Task<(List<PostListItemDto>, int TotalCount)> GetUserBookmarksAsync(string userId,int pageSize,int pageNumber)
         {
             try
             {
-                var query =  _context.BookMarks
+                var query = _context.BookMarks
                     .AsNoTracking()
-                    .Where(b => b.UserId == userId)
+                    .Where(b => b.UserId == userId &&
+                                b.Post != null &&
+                                !b.Post.IsDeleted &&
+                                b.Post.IsValid)
                     .Include(b => b.Post)
-                    .ThenInclude(p => p.AppUser)
+                        .ThenInclude(p => p.AppUser)
+                    .OrderByDescending(b => b.Post.Created);
+
+                var totalCount = await query.CountAsync();
+
+                if (totalCount == 0)
+                {
+                    return (new List<PostListItemDto>(), 0);
+                }
+                
+
+                var bookmarks = await query
+                    .Skip((pageNumber - 1) * pageSize)
+                    .Take(pageSize)
                     .Select(b => b.Post)
-                    .Where(p => !p.IsDeleted && p.IsValid);
+                    .ToListAsync();
 
-                int totalCount = await query.CountAsync();
+                var postIds = bookmarks.Select(p => p.Id).ToList();
 
-                var posts = await query.OrderByDescending(p => p.Created)
-                        .Skip((pageNumber - 1) * pageSize).Take(pageSize).ToListAsync();
-                var bookmarkStatus = await posts.GetBookmarkStatusAsync(userId, _context);
-                //var postDtos =  posts.Select(async p => p.ToListItemDto(userId , _context , posts));
-                var postDtos = await Task.WhenAll(posts.Select(p => p.ToListItemDto(userId, _context, posts)));
+                //Get bookmark status for all posts 
+                var bookmarkedPostIds = await _context.BookMarks
+                    .Where(b => b.UserId == userId && postIds.Contains(b.PostId))
+                    .Select(b => b.PostId)
+                    .ToListAsync();
 
+                var bookmarkedSet = new HashSet<Guid>(bookmarkedPostIds);
+                var postDtos = bookmarks.Select(post => new PostListItemDto
+                {
+                    Id = post.Id,
+                    Title = post.Title,
+                    Description = post.Description,
+                    Status = post.Status,
+                    Category = post.Category,
+                    ExpiresOn = post.ExpiresOn,
+                    ImageUrl = post.ImageUrl,
+                    IsBookmarked = bookmarkedSet.Contains(post.Id), // All should be true since these are from bookmarks
+                    unit = post.Unit,  
+                    quantity = post.Quantity,
+                    pickupLocation = post.PickupLocation,
+                    Created = post.Created,
+                    Owner = new UserInfoDto
+                    {
+                        Id = post.AppUser.Id,
+                        UserName = post.AppUser.FullName,
+                        Email = post.AppUser.Email
+                    }
+                }).ToList();
 
-
-                return (postDtos.ToList(), totalCount);
+                return (postDtos, totalCount);
             }
             catch (Exception ex)
             {
@@ -47,7 +85,6 @@ namespace Waster.Services
                 throw;
             }
         }
-
         public async Task<BookMark> AddBookmarkAsync(string userId, Guid postId)
         {
             try
@@ -65,7 +102,6 @@ namespace Waster.Services
 
                 var bookmark = new BookMark
                 {
-                    Id = Guid.NewGuid(),
                     UserId = userId,
                     PostId = postId
                 };

@@ -1,6 +1,7 @@
 ﻿using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
 using Waster.Hubs;
+using Waster.Interfaces;
 using Waster.Models;
 using Waster.Models.DbModels;
 

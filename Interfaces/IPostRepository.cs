@@ -1,5 +1,5 @@
 ﻿using Waster.DTOs;
-namespace Waster.Services
+namespace Waster.Interfaces
 {
     public interface IPostRepository
     {

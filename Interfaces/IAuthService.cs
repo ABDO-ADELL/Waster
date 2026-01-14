@@ -1,6 +1,6 @@
 ﻿using Waster.Models;
 
-namespace Waster.Services
+namespace Waster.Interfaces
 {
     public interface IAuthService
     {

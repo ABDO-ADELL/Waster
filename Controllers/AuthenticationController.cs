@@ -2,8 +2,8 @@
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.IdentityModel.Tokens;
+using Waster.Interfaces;
 using Waster.Models;
-using Waster.Services;
 
 namespace Waster.Controllers
 {

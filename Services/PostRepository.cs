@@ -1,5 +1,6 @@
 ﻿using Microsoft.EntityFrameworkCore;
 using Waster.DTOs;
+using Waster.Interfaces;
 
 namespace Waster.Services
 {

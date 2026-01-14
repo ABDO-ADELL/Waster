@@ -1,5 +1,6 @@
 ﻿using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Mvc;
+using Waster.Interfaces;
 using static System.Net.Mime.MediaTypeNames;
 
 namespace Waster.Services

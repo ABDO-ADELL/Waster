@@ -9,8 +9,9 @@ using System.Security.Claims;
 using System.Security.Cryptography;
 using System.Text;
 using Waster.Helpers;
+using Waster.Interfaces;
 using Waster.Models;
-using Waster.Services;
+using Waster.Models.DbModels;
 
 namespace Waster.Services
 {
@@ -19,12 +20,14 @@ namespace Waster.Services
         private readonly UserManager<AppUser> _userManager;
         private readonly RoleManager<IdentityRole> _roleManager;
         private readonly Jwt _jwt;
+        private readonly AppDbContext _context;
 
-        public AuthService(UserManager<AppUser> userManager, RoleManager<IdentityRole> roleManager, IOptions<Jwt> jwt)
+        public AuthService(UserManager<AppUser> userManager, RoleManager<IdentityRole> roleManager, IOptions<Jwt> jwt, AppDbContext context)
         {
             _userManager = userManager;
             _jwt = jwt.Value;
             _roleManager = roleManager;
+            _context = context;
         }
 
         public async Task<AuthModel> RegisterAsync(RegisterModel model)
@@ -61,6 +64,18 @@ namespace Waster.Services
                               string.Join(", ", result.Errors.Select(e => e.Description))
                 };
             }
+            var dashboard = new DashboardStats
+            {
+                UserId = user.Id,
+                TotalDonations = 0,
+                MealsServedInKG = 0,
+                AvailablePosts = 0,
+                PendingClaims = 0,
+                Monthlygoals = 0,
+                LastUpdated = DateTime.UtcNow
+            };
+            await _context.dashboardStatus.AddAsync(dashboard);
+            await _context.SaveChangesAsync();
 
             // If creation succeeded, generate JWT token and return success
             var jwtSecurityToken = await CreateJwtToken(user);
@@ -246,14 +261,6 @@ namespace Waster.Services
 
             return authmodel;
         }
-
-
-
-
-
-
-
-        // Add this to your AuthService.cs - Replace the RevokeTokenAsync method
 
         public async Task<bool> RevokeTokenAsync(string token)
         {

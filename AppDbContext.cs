@@ -21,6 +21,8 @@ namespace Waster
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             base.OnModelCreating(modelBuilder);
+            modelBuilder.Entity<Post>()
+        .HasQueryFilter(p => !p.IsDeleted);
 
             modelBuilder.Entity<AppUser>()
                 .HasMany(u => u.RefreshTokens)
@@ -52,8 +54,6 @@ namespace Waster
 
 
 
-            modelBuilder.Entity<DashboardStats>()
-                .HasKey(ds => ds.Id); // Define primary key for DashboardStats
 
             modelBuilder.Entity<Post>().HasIndex(p => new { p.UserId, p.Status ,p.IsDeleted})
                 .HasDatabaseName("IX_Post_UserId_Status_IsDeleted");
@@ -140,8 +140,20 @@ namespace Waster
                 .HasIndex(n => new { n.UserId, n.IsRead })
                 .HasDatabaseName("IX_Notification_UserId_IsRead");
 
+            modelBuilder.Entity<DashboardStats>()
+            .HasKey(ds => ds.Id);
 
+            modelBuilder.Entity<DashboardStats>()
+                .HasOne(ds => ds.user)
+                .WithOne() // or .WithMany() if a user can have multiple dashboards
+                .HasForeignKey<DashboardStats>(ds => ds.UserId)
+                .OnDelete(DeleteBehavior.Cascade);
 
+            // Ensure one dashboard per user
+            modelBuilder.Entity<DashboardStats>()
+                .HasIndex(ds => ds.UserId)
+                .IsUnique()
+                .HasDatabaseName("IX_DashboardStats_UserId_Unique");
 
         }
     }

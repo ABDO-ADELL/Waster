@@ -1,7 +1,7 @@
 ﻿using Microsoft.EntityFrameworkCore;
 using System.Linq.Expressions;
 
-namespace Waster.Services
+namespace Waster.Interfaces
 {
     public interface IBaseReporesitory<T> where T : class
     {

@@ -4,7 +4,7 @@ using Waster.Hubs;
 using Waster.Models;
 using Waster.Models.DbModels;
 
-namespace Waster.Services
+namespace Waster.Interfaces
 {
     public interface INotificationService
     {

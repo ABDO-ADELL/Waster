@@ -1,5 +1,6 @@
 ﻿using Microsoft.EntityFrameworkCore;
 using System.Linq.Expressions;
+using Waster.Interfaces;
 
 namespace Waster.Services
 {
@@ -22,7 +23,6 @@ namespace Waster.Services
 
             
             return await query.FirstOrDefaultAsync();
-
         }
 
 

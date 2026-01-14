@@ -1,4 +1,5 @@
-﻿using Waster.Models;
+﻿using Waster.Interfaces;
+using Waster.Models;
 
 namespace Waster.Services
 {

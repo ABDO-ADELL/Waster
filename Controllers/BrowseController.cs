@@ -1,9 +1,11 @@
 ﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Caching.Distributed;
 using System.Drawing;
 using System.Security.Claims;
-using Waster.Services;
+using System.Text.Json;
+using Waster.Interfaces;
 using static Microsoft.EntityFrameworkCore.DbLoggerCategory;
 using static System.Net.Mime.MediaTypeNames;
 using static System.Runtime.InteropServices.JavaScript.JSType;
@@ -18,35 +20,47 @@ namespace Waster.Controllers
         private readonly IUnitOfWork _unitOfWork;
         private readonly ILogger<BrowseController> _logger;
         private readonly AppDbContext _context;
+        private readonly IDistributedCache _cache;
 
         public BrowseController(
             IUnitOfWork unitOfWork,
             ILogger<BrowseController> logger,
-            AppDbContext context)
+            AppDbContext context, IDistributedCache cache)
         {
             _unitOfWork = unitOfWork;
             _logger = logger;
             _context = context;
+            _cache = cache;
         }
 
         [HttpGet("feed")]
-        public async Task<IActionResult> GetFeed(
-            [FromQuery] int pageSize = 20,
-            [FromQuery] string? category = null,
-            [FromQuery] bool excludeOwn = true,
-            [FromQuery]int? pageNumber=1)
+        public async Task<IActionResult> GetFeed
+            ([FromQuery] int pageSize = 20,[FromQuery] string? category = null,[FromQuery] bool excludeOwn = true,[FromQuery]int? pageNumber=1)
         {
             try
             {
                 var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
                 if (string.IsNullOrEmpty(userId))
                     return Unauthorized(new { message = "User not authenticated" });
+                //var cacheKey = $"feed_{pageSize}_{category}_{excludeOwn}_{pageNumber}";
+                //var cachedData = await _cache.GetStringAsync(cacheKey);
+                //if (!string.IsNullOrEmpty(cachedData))
+                //{
+                //    var cachedResult = JsonSerializer.Deserialize<CachedFeedData>(cachedData);
 
-                var (items, totalCount) = await _unitOfWork.Browse.GetFeedAsync(
-                    userId,
-                    pageSize,
-                    category,
-                    excludeOwn);
+                //    return Ok(new
+                //    {
+                //        items = cachedResult.Items,
+                //        totalCount = cachedResult.TotalCount,
+                //        pageSize = pageSize,
+                //        category = category,
+                //        pageNumber = pageNumber,
+                //        totalPages = cachedResult.TotalPages,
+                //        hasNext = pageNumber < cachedResult.TotalPages,
+                //        hasPrevious = pageNumber > 1
+                //    });
+                //}
+                var (items, totalCount) = await _unitOfWork.Browse.GetFeedAsync(userId,pageSize,category,  excludeOwn);
 
                 if (totalCount == 0)
                 {
@@ -59,7 +73,25 @@ namespace Waster.Controllers
                     });
                 }
                 var totalPages = (int)Math.Ceiling(totalCount / (double)pageSize);
-                
+
+                //// Cache the result
+                //var cacheData = new CachedFeedData
+                //{
+                //    Items = items,
+                //    TotalCount = totalCount,
+                //    TotalPages = totalPages
+                //};
+                //var options = new DistributedCacheEntryOptions
+                //{
+                //    AbsoluteExpirationRelativeToNow = TimeSpan.FromMinutes(2)
+                //};
+                 
+                //await _cache.SetStringAsync(
+                //    cacheKey,
+                //    JsonSerializer.Serialize(cacheData),
+                //    options
+                //);
+
                 return Ok(new
                 {
                     items = items,
@@ -214,6 +246,12 @@ namespace Waster.Controllers
                 _logger.LogError(ex, "Error searching posts");
                 return StatusCode(500, new { message = "An error occurred while searching posts" });
             }
+        }
+        public class CachedFeedData
+        {
+            public object Items { get; set; }
+            public int TotalCount { get; set; }
+            public int TotalPages { get; set; }
         }
     }
 }

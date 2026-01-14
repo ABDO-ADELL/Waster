@@ -3,11 +3,16 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using Scalar.AspNetCore;
+using System.Security.Claims;
 using System.Text;
 using System.Text.Json.Serialization;
+using System.Threading.RateLimiting;
 using Waster.Helpers;
 using Waster.Hubs;
+using Waster.Interfaces;
+using Waster.Migrations;
 using Waster.Models;
+using Waster.Models.DTOs;
 using Waster.Services;
 
 namespace Waster
@@ -52,10 +57,28 @@ namespace Waster
             .AddEntityFrameworkStores<AppDbContext>()
             .AddDefaultTokenProviders();
 
+            // Configure Rate Limiting
+            builder.Services.AddRateLimiter(options =>
+            {
+                options.GlobalLimiter = PartitionedRateLimiter.Create<HttpContext, string>(httpContext =>
+                {
+                    return RateLimitPartition.GetFixedWindowLimiter("GlobalLimiter", _ => new FixedWindowRateLimiterOptions
+                    {
+                        PermitLimit = 100,
+                        Window = TimeSpan.FromMinutes(1),
+                        QueueProcessingOrder = QueueProcessingOrder.OldestFirst,
+                        QueueLimit = 50
+                    });
+                });
+                options.OnRejected = async (context, cancellationToken) =>
+                {
+                    context.HttpContext.Response.StatusCode = 429;
+                    await context.HttpContext.Response.WriteAsync("Too many requests. Please try again later.", cancellationToken);
+                };
+            });
             // Database Context
             builder.Services.AddDbContext<AppDbContext>(options =>
                 options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
-
             // Register Services
             builder.Services.AddScoped<IClaimPostService, ClaimPostService>();
             builder.Services.AddScoped<IAuthService, AuthService>();
@@ -65,8 +88,15 @@ namespace Waster
             builder.Services.AddScoped<IUnitOfWork, UnitOfWork>();
             builder.Services.AddTransient(typeof(IBaseReporesitory<>), typeof(BaseReporesitory<>));
             builder.Services.AddScoped<INotificationService, NotificationService>();
-
-
+            builder.Services.AddScoped<IPostService, PostService>();
+            builder.Services.AddStackExchangeRedisCache(options =>
+            {
+                options.Configuration = builder.Configuration.GetConnectionString("RedisConnection");
+            });
+            builder.Services.AddHttpContextAccessor();
+            builder.Services.AddAutoMapper(typeof(Program).Assembly);
+            builder.Services.AddScoped<IDashboardService, DashboardService>();
+            builder.Services.AddScoped<IAccountService, AccountService>();
             // Add SignalR
             builder.Services.AddSignalR();
 
@@ -91,8 +121,7 @@ namespace Waster
                     ValidAudience = builder.Configuration["Jwt:Audience"],
                     IssuerSigningKey = new SymmetricSecurityKey(
                         Encoding.UTF8.GetBytes(builder.Configuration["Jwt:Key"])
-                    ),
-                    ClockSkew = TimeSpan.Zero // Remove default 5 min clock skew
+                    ),ClockSkew = TimeSpan.Zero // Remove default 5 min clock skew
                 };
             })
             .AddGoogle(googleOptions =>
@@ -195,13 +224,10 @@ namespace Waster
             // Root endpoint redirects to documentation
             app.MapGet("/", () => Results.Redirect("/scalar/v1"))
                 .ExcludeFromDescription();
-
             app.MapGet("/docs", () => Results.Redirect("/scalar/v1"))
                 .ExcludeFromDescription();
-
             app.MapGet("/api-docs", () => Results.Redirect("/scalar/v1"))
                 .ExcludeFromDescription();
-
             app.Run();
         }
     }

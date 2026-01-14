@@ -23,6 +23,13 @@ namespace Waster.DTOs
         public UserInfoDto? Owner { get; set; }
 
         public bool? isBokkmarked { get; set; }
+
+    }
+    public class ResponseDto<T>
+    {
+        public bool Success { get; set; }
+        public string Message { get; set; }
+        public T? Data { get; set; }
     }
 
     public class PostListItemDto
@@ -35,9 +42,12 @@ namespace Waster.DTOs
         public DateTime ExpiresOn { get; set; }
         public string? ImageUrlRelative { get; set; }
         public bool? IsBookmarked { get; set; } 
-
-
         public string? ImageUrl { get; set; }
+        public string quantity { get; set; }    
+        public string unit { get; set; }
+        public string pickupLocation { get; set; }
+        public DateTime Created { get; set; }
+        public UserInfoDto Owner { get; set; }
         public bool HasImage => !string.IsNullOrEmpty(ImageUrl);
 
     }

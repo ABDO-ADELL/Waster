@@ -22,7 +22,7 @@ namespace Waster.Helpers
 
             // Get all bookmarked post IDs in one query
             var bookmarkedPostIds = await context.BookMarks
-                .Where(b => b.UserId == userId && postIds.Contains(b.PostId))
+                .Where(b => b.UserId == userId && postIds.Contains(b.PostId) && !b.Post.IsDeleted)
                 .Select(b => b.PostId)
                 .ToListAsync();
 
@@ -33,7 +33,7 @@ namespace Waster.Helpers
             );
         }
 
-        // Enrich posts with bookmark status (alternative approach)
+        // Enrich posts with bookmark status 
         // Returns tuples of (Post, IsBookmarked)
         public static async Task<List<(Post Post, bool IsBookmarked)>> WithBookmarkStatusAsync(
             this IEnumerable<Post> posts,
