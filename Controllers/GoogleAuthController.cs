@@ -101,6 +101,9 @@ namespace Waster.Controllers
                         Monthlygoals = 0,
                         LastUpdated = DateTime.UtcNow
                     };
+                    await _context.dashboardStatus.AddAsync(dashboard);
+                    await _context.SaveChangesAsync();
+
 
                     // Add external login info
                     await _userManager.AddLoginAsync(user, new UserLoginInfo(
@@ -109,8 +112,6 @@ namespace Waster.Controllers
                         "Google"));
 
                     _logger.LogInformation("New user created from Google login: {Email}", email);
-                    await _context.dashboardStatus.AddAsync(dashboard);
-                    await _context.SaveChangesAsync();
 
                 }
                 else

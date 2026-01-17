@@ -31,10 +31,9 @@ namespace Waster.Services
             var validationResult = await ValidateClaimAsync(post, postId, userId);
             if (!validationResult.IsSuccess)
                 return validationResult;
-            var dashboard = await _context.dashboardStatus.FirstAsync(u => u.UserId == userId);
+            var dashboard = await _context.dashboardStatus.FirstOrDefaultAsync(u => u.UserId == userId);
             dashboard.PendingClaims += 1;
-
-
+            await _context.SaveChangesAsync();
             return await CreateClaimAsync(post, postId, userId);
         }
 
@@ -66,7 +65,6 @@ namespace Waster.Services
                 UserId = post.UserId,
                 Status = "Pending"
             };
-
             _context.ClaimPosts.Add(claim);
             await _context.SaveChangesAsync();
 
@@ -238,6 +236,7 @@ namespace Waster.Services
                 foreach (var other in otherClaims)
                     other.Status = "Rejected";
 
+
                 await _context.SaveChangesAsync();
 
                 //var response = await _claimPostService.ClaimPostAsync(claimId, userId);
@@ -290,11 +289,11 @@ namespace Waster.Services
 
                 claim.Status = "Cancelled";
                 _context.ClaimPosts.Remove(claim);
-                await _context.SaveChangesAsync();
-
-                _logger.LogInformation("User {UserId} cancelled claim {ClaimId}", userId, claimId);
-                var dashboard = await _context.dashboardStatus.FirstAsync(u => u.UserId == claim.RecipientId);
+                var dashboard = await _context.dashboardStatus.FirstOrDefaultAsync(u => u.UserId == claim.RecipientId);
                 dashboard.PendingClaims -= 1;
+                await _context.SaveChangesAsync();
+                _logger.LogInformation("User {UserId} cancelled claim {ClaimId}", userId, claimId);
+
 
                 return new ResponseDto<object> { Message = "Claim cancelled successfully" , Success=true};
             }
@@ -333,9 +332,9 @@ namespace Waster.Services
                     claim.Post.Status = "Available";
 
                 var recipientId = claim.RecipientId;
-                var dashboard = await _context.dashboardStatus.FirstAsync(d => d.UserId == recipientId);
+                var dashboard = await _context.dashboardStatus.FirstOrDefaultAsync(d => d.UserId == recipientId);
                 dashboard.PendingClaims -= 1;
-
+               
                 await _context.SaveChangesAsync();
 
                 return new ResponseDto<object> { Success=true,Message = "Claim rejected Successfully" };
@@ -377,7 +376,7 @@ namespace Waster.Services
                 double weightInKg = CalculateWeightInKg(claim.Post.Quantity, claim.Post.Unit);
 
                 var ownerDashboard = await _context.dashboardStatus
-                    .FirstAsync(d => d.UserId == claim.Post.UserId);
+                    .FirstOrDefaultAsync(d => d.UserId == claim.Post.UserId);
 
                 if (ownerDashboard.AvailablePosts > 0)
                     ownerDashboard.AvailablePosts -= 1;
@@ -386,7 +385,7 @@ namespace Waster.Services
                 ownerDashboard.LastUpdated = DateTime.UtcNow;
 
                 var recipientDashboard = await _context.dashboardStatus
-                    .FirstAsync(d => d.UserId == claim.RecipientId);
+                    .FirstOrDefaultAsync(d => d.UserId == claim.RecipientId);
 
                 recipientDashboard.MealsServedInKG += weightInKg;
                 recipientDashboard.TotalClaims += 1;

@@ -39,30 +39,10 @@ namespace Waster.Controllers
         {
             try
             {
-                var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
-                if (string.IsNullOrEmpty(userId))
-                    return Unauthorized(new { message = "User not authenticated" });
-                //var cacheKey = $"feed_{pageSize}_{category}_{excludeOwn}_{pageNumber}";
-                //var cachedData = await _cache.GetStringAsync(cacheKey);
-                //if (!string.IsNullOrEmpty(cachedData))
-                //{
-                //    var cachedResult = JsonSerializer.Deserialize<CachedFeedData>(cachedData);
 
-                //    return Ok(new
-                //    {
-                //        items = cachedResult.Items,
-                //        totalCount = cachedResult.TotalCount,
-                //        pageSize = pageSize,
-                //        category = category,
-                //        pageNumber = pageNumber,
-                //        totalPages = cachedResult.TotalPages,
-                //        hasNext = pageNumber < cachedResult.TotalPages,
-                //        hasPrevious = pageNumber > 1
-                //    });
-                //}
-                var (items, totalCount) = await _unitOfWork.Browse.GetFeedAsync(userId,pageSize,category,  excludeOwn);
+                var (items, response) = await _unitOfWork.Browse.GetFeedAsync(pageSize,category,  excludeOwn);
 
-                if (totalCount == 0)
+                if (response.Success=false)
                 {
                     return Ok(new
                     {
@@ -72,42 +52,22 @@ namespace Waster.Controllers
                         message = "No posts available at the moment"
                     });
                 }
-                var totalPages = (int)Math.Ceiling(totalCount / (double)pageSize);
-
-                //// Cache the result
-                //var cacheData = new CachedFeedData
-                //{
-                //    Items = items,
-                //    TotalCount = totalCount,
-                //    TotalPages = totalPages
-                //};
-                //var options = new DistributedCacheEntryOptions
-                //{
-                //    AbsoluteExpirationRelativeToNow = TimeSpan.FromMinutes(2)
-                //};
-                 
-                //await _cache.SetStringAsync(
-                //    cacheKey,
-                //    JsonSerializer.Serialize(cacheData),
-                //    options
-                //);
-
                 return Ok(new
                 {
                     items = items,
-                    totalCount = totalCount,
+                    totalCount = response.TotalCount,
                     pageSize = pageSize,
                     category = category,
                     pageNumber = pageNumber,
-                    totalPages = totalPages,
-                    hasNext = pageNumber < totalPages,
+                    totalPages = response.totalPages,
+                    hasNext = pageNumber < response.totalPages,
                     hasPrevious = pageNumber > 1
                 });
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error getting browse feed");
-                return StatusCode(500, new { message = "An error occurred while fetching posts" });
+                return StatusCode(500, new { message = "An error occurred while fetching posts" + ex.Message});
             }
         }
 
@@ -247,11 +207,11 @@ namespace Waster.Controllers
                 return StatusCode(500, new { message = "An error occurred while searching posts" });
             }
         }
-        public class CachedFeedData
-        {
-            public object Items { get; set; }
-            public int TotalCount { get; set; }
-            public int TotalPages { get; set; }
-        }
+        //public class CachedFeedData
+        //{
+        //    public object Items { get; set; }
+        //    public int TotalCount { get; set; }
+        //    public int TotalPages { get; set; }
+        //}
     }
 }

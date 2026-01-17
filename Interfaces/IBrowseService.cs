@@ -2,10 +2,9 @@
 
 namespace Waster.Interfaces
 {
-    public interface IBrowseRepository
+    public interface IBrowseService
     {
-        Task<(List<BrowsePostDto> Items, int TotalCount)> GetFeedAsync(
-            string userId,
+        Task<(List<BrowsePostDto> Items, BrowseResponse count)> GetFeedAsync(
             int pageSize,
             string? category,
             bool excludeOwn);

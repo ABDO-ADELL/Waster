@@ -6,7 +6,7 @@ namespace Waster.Interfaces
     {
         IBaseReporesitory<Post> Posts { get; }
         IBookMarkRepository BookMarks { get; }
-        IBrowseRepository Browse { get; }
+        IBrowseService Browse { get; }
         public Task<int> CompleteAsync();
 
 

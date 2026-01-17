@@ -55,14 +55,14 @@ namespace Waster.Controllers
                         }
                     });
                 }
+
                 var response = await _claimPostService.ClaimPostAsync(postId, userId);
                 if (!response.IsSuccess)
                 {
                     return BadRequest(new { message = response.Error });
                 }
-
-
                 _logger.LogInformation("User {UserId} claimed post {PostId}", userId, postId);
+
 
                 return Ok(new
                 {
@@ -150,8 +150,6 @@ namespace Waster.Controllers
                 return StatusCode(500, new { message = "An error occurred" });
             }
         }
-
-
         [HttpPut("approve")]
         public async Task<IActionResult> ApproveClaim([FromQuery] Guid claimId)
         {

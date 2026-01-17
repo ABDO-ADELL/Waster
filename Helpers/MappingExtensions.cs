@@ -7,37 +7,6 @@ namespace Waster.Helpers
 {
     public static class MappingExtensions
     {
-        public static PostResponseDto ToResponseDto(this Post post, bool includeOwner = false)
-        {
-
-
-            var dto = new PostResponseDto
-            {
-                Id = post.Id,
-                Title = post.Title,
-                Description = post.Description,
-                Quantity = post.Quantity,
-                Unit = post.Unit,
-                Category = post.Category,
-                Status = post.Status,
-                PickupLocation = post.PickupLocation,
-                ExpiresOn = post.ExpiresOn,
-                Created = post.Created,
-                ImageUrl = post.ImageUrl,
-            };
-
-            if (includeOwner && post.AppUser != null)
-            {
-                dto.Owner = new UserInfoDto
-                {
-                    Id = post.AppUser.Id,
-                    UserName = post.AppUser.UserName,
-                    Email = post.AppUser.Email
-                };
-            }
-
-            return dto;
-        }
 
         public static async Task<PostListItemDto>  ToListItemDto(this Post post,string userId , AppDbContext _context, List<Post> posts)
         {

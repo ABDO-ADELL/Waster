@@ -1,17 +1,10 @@
 ﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.DotNet.Scaffolding.Shared.Messaging;
-using Microsoft.EntityFrameworkCore;
-using PhoneNumbers;
-using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using Waster.DTOs;
-using Waster.Helpers;
 using Waster.Interfaces;
 using Waster.Models;
-using Waster.Services;
-using static Microsoft.EntityFrameworkCore.DbLoggerCategory;
 using static Waster.Services.AccountService;
 namespace Waster.Controllers
 {
@@ -45,7 +38,7 @@ namespace Waster.Controllers
                 return NotFound(new { message = result.Message });
             return Ok(new
             {
-                data = result.Data,
+                items = result.items,
             });
 
         }
@@ -122,11 +115,7 @@ namespace Waster.Controllers
             var result = await _accountService.GetAllPosts( pageNumber , pageSize);
             if (!result.Success)
                 return BadRequest(new { message = result.Message });
-            return Ok(new
-            {
-                message = result.Message,
-                data = result.Data,
-            });
+            return Ok(result.items);
         }
 
         [HttpDelete("Account")]

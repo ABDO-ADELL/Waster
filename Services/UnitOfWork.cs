@@ -11,16 +11,20 @@ namespace Waster.Services
 
         private IBaseReporesitory<Post>? _posts;
         private IBookMarkRepository? _bookMarks;
-        private IBrowseRepository? _browse;
+        private IBrowseService? _browse;
+        private readonly IHttpContextAccessor _httpContextAccessor;
 
         public UnitOfWork(
             AppDbContext context,
             ILogger<UnitOfWork> logger,
-            IServiceProvider serviceProvider)
+            IServiceProvider serviceProvider,
+            IHttpContextAccessor httpContextAccessor)
         {
             _context = context;
             _logger = logger;
             _serviceProvider = serviceProvider;
+            _httpContextAccessor = httpContextAccessor;
+
         }
 
         public IBaseReporesitory<Post> Posts
@@ -48,14 +52,14 @@ namespace Waster.Services
             }
         }
 
-        public IBrowseRepository Browse
+        public IBrowseService Browse
         {
             get
             {
                 if (_browse == null)
                 {
-                    var browseLogger = _serviceProvider.GetRequiredService<ILogger<BrowseRepository>>();
-                    _browse = new BrowseRepository(_context, browseLogger);
+                    var browseLogger = _serviceProvider.GetRequiredService<ILogger<BrowseService>>();
+                    _browse = new BrowseService(_context, browseLogger , _httpContextAccessor);
                 }
                 return _browse;
             }

@@ -39,22 +39,14 @@ namespace Waster.Services
             {
                 var userId = _accessor.HttpContext.User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
 
-                DashboardResponseDto dashboardResponseDto = new DashboardResponseDto
-                {
-                    AvailablePosts = 0,
-                    TotalDonations = 0,
-                    MealsServedInKG = 0,
-                    PendingClaims = 0,
-                    TotalClaims = 0,
-                    Monthlygoals = 0
-                };
+                DashboardResponseDto dashboardResponseDto = new DashboardResponseDto();
                 var userPosts = await _context.Posts
                     .Where(p => p.UserId == userId)
                     .ToListAsync();
 
                 var AvailablePosts = userPosts.Where(p => p.Status.ToLower() == "available").Count();
 
-                var myCompletedDonations = userPosts.Where(p => p.Status == "Completed").Count();
+                var myCompletedDonations = userPosts.Where(p => p.Status.ToLower() == "completed").Count();
 
                 var TotalClaims = await _context.ClaimPosts.Where(c => c.RecipientId == userId).CountAsync();
 
@@ -62,7 +54,7 @@ namespace Waster.Services
 
                 var myPendingClaims = await _context.ClaimPosts.Where(c => c.RecipientId == userId && c.Status == "Pending").CountAsync();
                 double total = 0;
-                foreach (var post in userPosts)
+                foreach (var post in userPosts.Where(p => p.Status.ToLower() == "completed"))
                 {
                     total += CalculateWeightInKg(post.Quantity, post.Unit);
 

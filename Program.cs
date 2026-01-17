@@ -84,7 +84,7 @@ namespace Waster
             builder.Services.AddScoped<IAuthService, AuthService>();
             builder.Services.AddScoped<IFileStorageService, FileStorageService>();
             builder.Services.AddScoped<IBookMarkRepository, BookMarkRepository>();
-            builder.Services.AddScoped<IBrowseRepository, BrowseRepository>();
+            builder.Services.AddScoped<IBrowseService, BrowseService>();
             builder.Services.AddScoped<IUnitOfWork, UnitOfWork>();
             builder.Services.AddTransient(typeof(IBaseReporesitory<>), typeof(BaseReporesitory<>));
             builder.Services.AddScoped<INotificationService, NotificationService>();

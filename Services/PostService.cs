@@ -151,8 +151,10 @@ namespace Waster.Services
 
 
             await _postRepo.AddAsync(post);
-            var dashboard = await _context.dashboardStatus.FirstAsync(u=>u.UserId== userId);
+            var dashboard = await _context.dashboardStatus.FirstAsync(u => u.UserId == userId);
             dashboard.AvailablePosts += 1;
+            await _context.SaveChangesAsync();
+
 
             return new ResponseDto<object>
             {
@@ -270,8 +272,6 @@ namespace Waster.Services
                     }
                     existingPost.ImageUrl = imageUrl;
                 }
-
-
             }
 
             // Update other fields
@@ -284,6 +284,7 @@ namespace Waster.Services
             if (dto.Category != null) existingPost.Category = dto.Category;
 
             await _postRepo.UpdateAsync(existingPost);
+            await _context.SaveChangesAsync();
 
             return new ResponseDto<object> { Message="Updated",Success= true };
         }
@@ -315,8 +316,10 @@ namespace Waster.Services
                 var success = await _postRepo.DeleteAsync(id);
                 if (!success)
                     return new ResponseDto<object> { Success=false,Message="Post not found" };
-            var dashboard = await _context.dashboardStatus.FirstAsync(u => u.UserId == userId);
+            var dashboard = await _context.dashboardStatus.FirstOrDefaultAsync(u => u.UserId == userId);
             dashboard.AvailablePosts -= 1;
+            await _context.SaveChangesAsync();
+
 
             return new ResponseDto<object> { Message="Post deleted successfully",Success=true};
         }

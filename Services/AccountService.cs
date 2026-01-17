@@ -47,7 +47,7 @@ namespace Waster.Services
             if (dto == null)
                 return new ResponseDto<object> { Message = "User not found.", Success = false };
 
-            return new ResponseDto<object> { Data = dto, Message = "sucsess", Success = true };
+            return new ResponseDto<object> { items = dto, Message = "sucsess", Success = true };
 
 
         }
@@ -283,7 +283,7 @@ namespace Waster.Services
             if (!items.Any())
                 return new ResponseDto<object>{Message= "No posts found for the specified user.", Success = true,
 
-                    Data =(new
+                    items = (new
                 {
                     items = items,
                     pageNumber = pageNumber,
@@ -301,7 +301,7 @@ namespace Waster.Services
             {
                 Message = "Posts retrieved successfully.",
                 Success = true,
-                Data = (new
+                items = (new
                 {
                     items = items,
                     pageNumber = pageNumber,

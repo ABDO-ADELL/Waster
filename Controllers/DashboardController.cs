@@ -28,6 +28,7 @@ namespace Waster.Controllers
         public async Task<IActionResult> DashboardStats()
         {
             DashboardResponseDto stats = await _dashboardService.DashboardStats();
+
             if (stats == null)
             {
                 return BadRequest(new { message = "No statistics available" });

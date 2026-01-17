@@ -1,5 +1,6 @@
 ﻿using Microsoft.EntityFrameworkCore;
 using System.Drawing;
+using System.Security.Claims;
 using Waster.DTOs;
 using Waster.Helpers;
 using Waster.Interfaces;
@@ -9,22 +10,30 @@ using static System.Runtime.InteropServices.JavaScript.JSType;
 
 namespace Waster.Services
 {
-    public class BrowseRepository : IBrowseRepository
+    public class BrowseService : IBrowseService
     {
         private readonly AppDbContext _context;
-        private readonly ILogger<BrowseRepository> _logger;
+        private readonly ILogger<BrowseService> _logger;
+        private readonly IHttpContextAccessor _accessor;
 
-        public BrowseRepository(AppDbContext context, ILogger<BrowseRepository> logger)
+        public BrowseService(AppDbContext context, ILogger<BrowseService> logger,IHttpContextAccessor accessor)
         {
             _context = context;
             _logger = logger;
+            _accessor = accessor;
         }
 
-        public async Task<(List<BrowsePostDto> Items, int TotalCount)> GetFeedAsync
-            (string userId,int pageSize,string? category,bool excludeOwn)
+        public async Task<(List<BrowsePostDto> Items, BrowseResponse count)> GetFeedAsync
+            (int pageSize,string? category,bool excludeOwn)
         {
+            var userId = _accessor.HttpContext.User.FindFirstValue(ClaimTypes.NameIdentifier);
+
+
             try
             {
+                if (string.IsNullOrEmpty(userId))
+                    return (new List<BrowsePostDto>(),new BrowseResponse { Message= "user must be authenticated" , Success = false});
+
                 var query = _context.Posts
                     .Include(p => p.AppUser)
                     .Where(p => p.Status == "Available" &&
@@ -41,7 +50,7 @@ namespace Waster.Services
                 var totalCount = await query.CountAsync();
 
                 if (totalCount == 0)
-                    return (new List<BrowsePostDto>(), 0);
+                    return (new List<BrowsePostDto>(), new BrowseResponse { Success=false});
 
                 var randomPosts = await query
                     .OrderBy(p => Guid.NewGuid())
@@ -50,13 +59,10 @@ namespace Waster.Services
 
                 var items = await MapToPostDtosAsync(randomPosts, userId);
 
-                //    var responseDto = post.ToResponseDto(includeOwner: isOwner);
+                var totalPages = (int)Math.Ceiling(totalCount / (double)pageSize);
+                BrowseResponse response = new BrowseResponse{ Success= true,totalPages=totalPages , TotalCount=totalCount };
 
-
-                //    var responseDto = post.ToResponseDto(includeOwner: isOwner);
-
-
-                return (items, totalCount);
+                return (items, response);
             }
             catch (Exception ex)
             {

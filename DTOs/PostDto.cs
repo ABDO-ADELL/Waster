@@ -1,6 +1,8 @@
-﻿using System.ComponentModel.DataAnnotations;
+﻿using AutoMapper;
+using System.ComponentModel.DataAnnotations;
+using Waster.DTOs;
 
-public class PostDto
+public class PostDto 
 {
     // DTO for creating a new post
         [Required(ErrorMessage = "Title is required")]
@@ -18,10 +20,6 @@ public class PostDto
         [Required(ErrorMessage = "Unit is required")]
         [StringLength(50)]
         public string Unit { get; set; }
-
-
-        // Optional image data
-      //  public byte[]? ImageData { get; set; }
 
         [StringLength(50)]
         public string? ImageType { get; set; }

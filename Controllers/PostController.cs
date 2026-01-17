@@ -35,7 +35,6 @@ namespace Waster.Controllers
             {
                 return BadRequest(ResponseDto.Message);
             }
-            await context.SaveChangesAsync();
             return Ok(ResponseDto.Message);
         }
         [HttpPut]
@@ -46,7 +45,6 @@ namespace Waster.Controllers
             {
                 return BadRequest(responseDto.Message);
             }
-            await context.SaveChangesAsync(); 
             return Ok(responseDto.Message);
         }
         
@@ -58,7 +56,6 @@ namespace Waster.Controllers
             {
                 return BadRequest(responseDto.Message);
             }
-            await context.SaveChangesAsync();
             return Ok(responseDto.Message);
         }
     }
