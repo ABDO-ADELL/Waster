@@ -15,14 +15,13 @@ namespace Waster.Controllers
     [Authorize]
     public class PostController : ControllerBase
     {
-        private readonly AppDbContext context;
-        private readonly IBaseReporesitory<Post> _postRepo;
-        private readonly ILogger<PostController> _logger;
-        private readonly IFileStorageService _fileStorage;
-        private readonly IPostService _postService;
+        //private readonly AppDbContext _context;
+        //private readonly IBaseReporesitory<Post> _postRepo;
+        //private readonly ILogger<PostController> _logger;
+        //private readonly IFileStorageService _fileStorage;
         //private readonly BookMarkBL _bookmarkbl;
-
-        public PostController( IPostService postService)
+        private readonly IPostService _postService;
+        public PostController( IPostService postService  )
         {
             _postService = postService;
         }

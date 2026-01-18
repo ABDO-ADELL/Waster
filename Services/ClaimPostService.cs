@@ -236,7 +236,8 @@ namespace Waster.Services
                 foreach (var other in otherClaims)
                     other.Status = "Rejected";
 
-
+                var dashboard = await _context.dashboardStatus.FirstAsync(u => u.UserId == userId);
+                dashboard.AvailablePosts -= 1;
                 await _context.SaveChangesAsync();
 
                 //var response = await _claimPostService.ClaimPostAsync(claimId, userId);
